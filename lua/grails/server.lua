@@ -16,6 +16,7 @@ function requests.initialize(state, params)
     capabilities = {
       positionEncoding = state.encoding,
       textDocumentSync = { openClose = true, change = 1, save = true },
+      definitionProvider = true,
     },
     serverInfo = { name = 'grails.nvim' },
   }
@@ -23,6 +24,10 @@ end
 
 function requests.shutdown()
   return vim.NIL
+end
+
+requests['textDocument/definition'] = function(state, params)
+  return require('grails.features.definition').definition(params, state.encoding)
 end
 
 --- @type table<string, fun(state: grails.State, params: any)>
