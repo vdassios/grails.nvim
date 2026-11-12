@@ -1,0 +1,10 @@
+# Compiled parsers (tree-sitter build, nvim-treesitter's local install)
+*.so
+*.dylib
+*.dll
+
+# tree-sitter CLI and npm artefacts
+node_modules/
+*.wasm
+*.o
+*.obj
