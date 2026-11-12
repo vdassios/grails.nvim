@@ -1,0 +1,17 @@
+{
+  "name": "tree-sitter-gsp",
+  "version": "0.1.0",
+  "description": "GSP (Groovy Server Pages) grammar for tree-sitter",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vdassios/grails.nvim.git",
+    "directory": "tree-sitter-gsp"
+  },
+  "license": "Apache-2.0",
+  "keywords": ["incremental", "parsing", "tree-sitter", "gsp", "grails"],
+  "files": ["grammar.js", "tree-sitter.json", "src/**"],
+  "devDependencies": {
+    "tree-sitter-cli": "^0.27.2"
+  }
+}

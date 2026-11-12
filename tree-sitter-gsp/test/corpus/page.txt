@@ -1,0 +1,109 @@
+================================================================================
+Whole page
+================================================================================
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%-- Book list --%>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="layout" content="main"/>
+  <title>${title}</title>
+  <asset:stylesheet src="books.css"/>
+</head>
+<body>
+  <g:if test="${books}">
+    <ul>
+      <g:each in="${books}" var="book">
+        <li class="${book.available ? 'in' : 'out'}"><g:link action="show" id="${book.id}">${book.title}</g:link></li>
+      </g:each>
+    </ul>
+  </g:if>
+  <g:render template="/shared/footer" model="[year: year]"/>
+</body>
+</html>
+--------------------------------------------------------------------------------
+
+(document
+  (directive
+    (directive_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text))))
+  (content)
+  (comment)
+  (content)
+  (expression
+    (code))
+  (content)
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text))))
+  (content)
+  (gsp_tag_open
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (expression
+          (code)))))
+  (content)
+  (gsp_tag_open
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (expression
+          (code))))
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text))))
+  (content)
+  (expression
+    (code))
+  (content)
+  (gsp_tag_open
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text)))
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (expression
+          (code)))))
+  (expression
+    (code))
+  (gsp_tag_close
+    (namespace)
+    (tag_name))
+  (content)
+  (gsp_tag_close
+    (namespace)
+    (tag_name))
+  (content)
+  (gsp_tag_close
+    (namespace)
+    (tag_name))
+  (content)
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text)))
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (groovy_value))))
+  (content))

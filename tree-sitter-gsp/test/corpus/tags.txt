@@ -1,0 +1,229 @@
+================================================================================
+Open and close tags
+================================================================================
+<g:if test="${x}">yes</g:if>
+--------------------------------------------------------------------------------
+
+(document
+  (gsp_tag_open
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (expression
+          (code)))))
+  (content)
+  (gsp_tag_close
+    (namespace)
+    (tag_name)))
+
+================================================================================
+Self-closing tags
+================================================================================
+<asset:stylesheet src="app.css"/><g:render template="/book/row" />
+--------------------------------------------------------------------------------
+
+(document
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text))))
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text)))))
+
+================================================================================
+Nested tags
+================================================================================
+<g:each in="${books}" var="b"><g:link action="show">${b.title}</g:link></g:each>
+--------------------------------------------------------------------------------
+
+(document
+  (gsp_tag_open
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (expression
+          (code))))
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text))))
+  (gsp_tag_open
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text))))
+  (expression
+    (code))
+  (gsp_tag_close
+    (namespace)
+    (tag_name))
+  (gsp_tag_close
+    (namespace)
+    (tag_name)))
+
+================================================================================
+Map-valued attribute
+================================================================================
+<g:render template="row" model="[book: b, n: 1]"/>
+--------------------------------------------------------------------------------
+
+(document
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text)))
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (groovy_value)))))
+
+================================================================================
+Bracketed text is not a map
+================================================================================
+<g:link class="a [b]" params="[x]y"/>
+--------------------------------------------------------------------------------
+
+(document
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text)))
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text)))))
+
+================================================================================
+Single-quoted values
+================================================================================
+<g:set var='n' value='${a + b}'/><g:render model='[a: "b"]'/>
+--------------------------------------------------------------------------------
+
+(document
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text)))
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (expression
+          (code)))))
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (groovy_value)))))
+
+================================================================================
+Template namespace with a path
+================================================================================
+<tmpl:/shared/item label="${l}"/><tmpl:row/>
+--------------------------------------------------------------------------------
+
+(document
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (expression
+          (code)))))
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name)))
+
+================================================================================
+Attribute without a value
+================================================================================
+<g:checkBox checked/>
+--------------------------------------------------------------------------------
+
+(document
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name))))
+
+================================================================================
+Whitespace and newlines between attributes
+================================================================================
+<g:link
+    controller="book"
+    action="list"
+  >x</g:link >
+--------------------------------------------------------------------------------
+
+(document
+  (gsp_tag_open
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text)))
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text))))
+  (content)
+  (gsp_tag_close
+    (namespace)
+    (tag_name)))
+
+================================================================================
+GSP tag inside an HTML attribute value
+================================================================================
+<a href="<g:createLink action="list"/>">x</a>
+--------------------------------------------------------------------------------
+
+(document
+  (content)
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text))))
+  (content))
+
+================================================================================
+HTML tags around GSP tags
+================================================================================
+<!DOCTYPE html><ul><li><g:message/></li></ul>
+--------------------------------------------------------------------------------
+
+(document
+  (content)
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name))
+  (content))
