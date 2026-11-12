@@ -41,4 +41,16 @@ function M.edit(rel)
   return vim.api.nvim_get_current_buf()
 end
 
+--- The grails.nvim client attached to `buf` (enabled through lsp/grails.lua).
+function M.client(buf)
+  vim.lsp.enable 'grails'
+  local client
+  vim.wait(2000, function()
+    client = vim.lsp.get_clients({ bufnr = buf, name = 'grails' })[1]
+    return client ~= nil and client.initialized
+  end)
+  assert(client and client.initialized, 'grails client did not attach')
+  return client
+end
+
 return M
