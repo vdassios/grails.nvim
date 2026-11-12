@@ -22,3 +22,11 @@ vim.api.nvim_create_autocmd('User', {
     end
   end,
 })
+
+vim.api.nvim_create_user_command('GrailsAlternate', function()
+  require('grails.alternate').jump()
+end, { desc = 'Grails: go to the alternate file (action <-> view, domain <-> controller <-> service)' })
+
+vim.api.nvim_create_user_command('GrailsReindex', function()
+  require('grails.project').reset()
+end, { desc = 'Grails: drop the cached project index' })
