@@ -227,3 +227,38 @@ HTML tags around GSP tags
     (namespace)
     (tag_name))
   (content))
+
+================================================================================
+Whitespace around the equals sign
+================================================================================
+<g:if test ="${a}"><g:each in = "${b}" var= 'c'>x</g:each></g:if>
+--------------------------------------------------------------------------------
+
+(document
+  (gsp_tag_open
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (expression
+          (code)))))
+  (gsp_tag_open
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (expression
+          (code))))
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text))))
+  (content)
+  (gsp_tag_close
+    (namespace)
+    (tag_name))
+  (gsp_tag_close
+    (namespace)
+    (tag_name)))

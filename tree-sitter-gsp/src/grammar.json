@@ -555,7 +555,12 @@
               "type": "SEQ",
               "members": [
                 {
-                  "type": "STRING",
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "PATTERN",
+                    "value": "\\s*=\\s*"
+                  },
+                  "named": false,
                   "value": "="
                 },
                 {

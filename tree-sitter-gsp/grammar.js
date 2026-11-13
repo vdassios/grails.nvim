@@ -38,6 +38,8 @@ const JSP_CODE = /([^%]|%+[^%>])+/; // up to %>
 const GSCRIPT_CODE = /([^}]|\}+[^}%])+/; // up to }%
 const GDECLARATION_CODE = /([^}]|\}+[^}!])+/; // up to }!
 const GDIRECTIVE_BODY_END = '}';
+// `=` between an attribute name and its value; GSP allows whitespace around it.
+const EQUALS = /\s*=\s*/;
 
 const JSP_COMMENT = /<%--([^-]|-[^-]|--+[^-%]|--+%[^>-])*-*--%>/;
 const GSP_COMMENT = /%\{--([^-]|-[^-]|--+[^-}]|--+\}[^%-])*-*--\}%/;
@@ -118,7 +120,9 @@ export default grammar({
     // `/` separates path segments in `<tmpl:/path/name/>`; a trailing `/` belongs to `/>`.
     tag_name: _ => /\/?[a-zA-Z0-9_-]+(\/[a-zA-Z0-9_-]+)*/,
 
-    attribute: $ => seq(field('name', $.attribute_name), optional(seq('=', field('value', $.attribute_value)))),
+    // `=` is one token with its surrounding whitespace (`test ="${x}"`), so the
+    // lexer's longest match tells it apart from the whitespace between attributes.
+    attribute: $ => seq(field('name', $.attribute_name), optional(seq(alias(EQUALS, '='), field('value', $.attribute_value)))),
 
     attribute_name: _ => /[^\s'"=:$<>\/\\]+/,
 
