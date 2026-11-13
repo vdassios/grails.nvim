@@ -99,7 +99,18 @@ export default grammar({
 
     directive: $ => choice(seq('<%@', $._directive_body, '%>'), seq('@{', $._directive_body, GDIRECTIVE_BODY_END)),
 
-    _directive_body: $ => seq(optional($._ws), field('name', $.directive_name), repeat(seq($._ws, $.attribute)), optional($._ws)),
+    // Grails reads a page directive as `name="value"` pairs, so the leading
+    // name (`page`) is optional: `<%@ defaultCodec="HTML" %>`.
+    _directive_body: $ =>
+      seq(
+        optional($._ws),
+        choice(field('name', $.directive_name), alias($._directive_first_attribute, $.attribute)),
+        repeat(seq($._ws, $.attribute)),
+        optional($._ws),
+      ),
+
+    _directive_first_attribute: $ =>
+      seq(field('name', alias($.directive_name, $.attribute_name)), alias(EQUALS, '='), field('value', $.attribute_value)),
 
     directive_name: _ => /[a-zA-Z]+/,
 

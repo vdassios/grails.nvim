@@ -29,3 +29,25 @@ Groovy-style directive
       (attribute_name)
       (attribute_value
         (text)))))
+
+================================================================================
+Directive without a name
+================================================================================
+<%@ defaultCodec="HTML" %><%@ expressionCodec = 'xml' contentType="text/xml" %>
+--------------------------------------------------------------------------------
+
+(document
+  (directive
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text))))
+  (directive
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text)))
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text)))))
