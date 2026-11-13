@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  TREE_SITTER_CLI: 0.27.2
+  # The revisions nvim-treesitter (main) pins for these parsers.
+  GROOVY_REVISION: 2a6ddd558b6aa39c5b77d8db9fe9baf817486b2c
+  HTML_REVISION: 73a3947324f6efddf9e17c0ea58d454843590cc0
+
+jobs:
+  grammar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g tree-sitter-cli@${{ env.TREE_SITTER_CLI }}
+      - name: Generated parser is up to date
+        working-directory: tree-sitter-gsp
+        run: tree-sitter generate && git diff --exit-code -- src
+      - name: Corpus tests
+        working-directory: tree-sitter-gsp
+        run: tree-sitter test -p .
+
+  stylua:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: JohnnyMorganz/stylua-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: 2.6.0
+          args: --check .
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        neovim: [v0.11.3, stable, nightly]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g tree-sitter-cli@${{ env.TREE_SITTER_CLI }}
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.neovim }}
+      - name: Build the groovy and html parsers
+        run: |
+          parsers="$RUNNER_TEMP/data/nvim/site/parser"
+          mkdir -p "$parsers"
+          build() {
+            git clone --quiet "$2" "$RUNNER_TEMP/$1"
+            git -C "$RUNNER_TEMP/$1" checkout --quiet "$3"
+            tree-sitter build -o "$parsers/$1.so" "$RUNNER_TEMP/$1"
+          }
+          build groovy https://github.com/murtaza64/tree-sitter-groovy "$GROOVY_REVISION"
+          build html https://github.com/tree-sitter/tree-sitter-html "$HTML_REVISION"
+          echo "XDG_DATA_HOME=$RUNNER_TEMP/data" >> "$GITHUB_ENV"
+      - name: Tests
+        run: nvim --headless -u tests/minimal_init.lua -l tests/run.lua
