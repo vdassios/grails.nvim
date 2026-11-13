@@ -1,0 +1,10 @@
+grails.nvim
+Copyright 2026 vdassios
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+The GSP token set of the tree-sitter grammar and the Grails resolution rules
+(views, templates, layouts, assets, controllers and actions) follow the
+behaviour of the Apache Grails IntelliJ plugin
+(https://github.com/apache/grails-intellij-plugin), licensed under the
+Apache License, Version 2.0. No source code was copied from it.
