@@ -48,8 +48,9 @@ function brackets(depth) {
 
 const MAP_VALUE = new RegExp(String.raw`\[(${MAP_ATOM}|${brackets(2)})*\]`);
 
-// Body of `${ }`: balanced braces (three levels), strings skipped.
-const EXPRESSION_CODE = new RegExp(`(${CODE_ATOM}|${braces(2)})+`);
+// Body of `${ }`: balanced braces (eight levels; the deepest measured is five,
+// in Grails 7's generated welcome page), strings skipped.
+const EXPRESSION_CODE = new RegExp(`(${CODE_ATOM}|${braces(7)})+`);
 // Bodies that run up to a two-character terminator.
 const JSP_CODE = /([^%]|%+[^%>])+/; // up to %>
 const GSCRIPT_CODE = /([^}]|\}+[^}%])+/; // up to }%
