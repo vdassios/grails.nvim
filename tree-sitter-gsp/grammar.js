@@ -31,6 +31,23 @@ function braces(depth) {
   return String.raw`\{(${inner})*\}`;
 }
 
+// A whole `[...]` attribute value. Like Grails, balance `[ ]` and `{ }` together
+// (four levels) and skip strings of either quote, so `"[a: "b"]"` is one value.
+const MAP_ATOM = String.raw`[^\[\]{}"']|${DQ_STRING}|${SQ_STRING}`;
+
+/**
+ * Balanced `[ ]` or `{ }` nested up to `depth + 1` levels deep.
+ *
+ * @param {number} depth
+ * @returns {string}
+ */
+function brackets(depth) {
+  const inner = depth === 0 ? MAP_ATOM : `${MAP_ATOM}|${brackets(depth - 1)}`;
+  return String.raw`[\[{](${inner})*[\]}]`;
+}
+
+const MAP_VALUE = new RegExp(String.raw`\[(${MAP_ATOM}|${brackets(2)})*\]`);
+
 // Body of `${ }`: balanced braces (three levels), strings skipped.
 const EXPRESSION_CODE = new RegExp(`(${CODE_ATOM}|${braces(2)})+`);
 // Bodies that run up to a two-character terminator.
@@ -143,9 +160,11 @@ export default grammar({
         seq("'", optional(choice(alias($._map_sq, $.groovy_value), repeat1(choice($.expression, alias($._text_sq, $.text))))), "'"),
       ),
 
-    // A whole value of the form `[...]` is a Groovy map or list.
-    _map_dq: _ => token(prec(1, /\[[^"]*\]/)),
-    _map_sq: _ => token(prec(1, /\[[^']*\]/)),
+    // A whole value of the form `[...]` is a Groovy map or list. No lexical
+    // precedence: a longer text match (`"[x]y"`) must win, and on a tie this
+    // token wins because it is declared before the text tokens.
+    _map_dq: _ => token(MAP_VALUE),
+    _map_sq: _ => token(MAP_VALUE),
 
     _text_dq: _ => prec.right(repeat1(choice(/[^"$\\]+/, '$', '\\', '\\$'))),
     _text_sq: _ => prec.right(repeat1(choice(/[^'$\\]+/, '$', '\\', '\\$'))),

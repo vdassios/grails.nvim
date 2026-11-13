@@ -262,3 +262,25 @@ Whitespace around the equals sign
   (gsp_tag_close
     (namespace)
     (tag_name)))
+
+================================================================================
+Quotes and brackets inside a map value
+================================================================================
+<g:message args="[fieldValue(bean: b, field: "n"), [x: '}']]"/><g:render model='[a: ['b'], c: { "]" }]'/>
+--------------------------------------------------------------------------------
+
+(document
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (groovy_value))))
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (groovy_value)))))
