@@ -51,3 +51,24 @@ Directive without a name
       (attribute_name)
       (attribute_value
         (text)))))
+
+================================================================================
+Triple-quoted directive values
+================================================================================
+<%@ model="""
+Date d = new Date()
+String s = "x"
+"""%>@{ model='''Book b; Map ''m'' '''}
+--------------------------------------------------------------------------------
+
+(document
+  (directive
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text))))
+  (directive
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text)))))

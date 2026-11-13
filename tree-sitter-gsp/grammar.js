@@ -159,6 +159,9 @@ export default grammar({
       choice(
         seq('"', optional(choice(alias($._map_dq, $.groovy_value), repeat1(choice($.expression, alias($._text_dq, $.text))))), '"'),
         seq("'", optional(choice(alias($._map_sq, $.groovy_value), repeat1(choice($.expression, alias($._text_sq, $.text))))), "'"),
+        // Directive values may be triple-quoted (`<%@ model="""...""" %>`).
+        seq('"""', optional(repeat1(choice($.expression, alias($._text_tdq, $.text)))), '"""'),
+        seq("'''", optional(repeat1(choice($.expression, alias($._text_tsq, $.text)))), "'''"),
       ),
 
     // A whole value of the form `[...]` is a Groovy map or list. No lexical
@@ -169,6 +172,9 @@ export default grammar({
 
     _text_dq: _ => prec.right(repeat1(choice(/[^"$\\]+/, '$', '\\', '\\$'))),
     _text_sq: _ => prec.right(repeat1(choice(/[^'$\\]+/, '$', '\\', '\\$'))),
+    // One or two quotes are text; three end the value (longest match).
+    _text_tdq: _ => prec.right(repeat1(choice(/[^"$\\]+/, /""?/, '$', '\\', '\\$'))),
+    _text_tsq: _ => prec.right(repeat1(choice(/[^'$\\]+/, /''?/, '$', '\\', '\\$'))),
 
     _ws: _ => /\s+/,
   },
