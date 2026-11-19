@@ -1,10 +1,12 @@
 # grails.nvim
 
-Grails support for Neovim: a tree-sitter grammar for GSP (Groovy Server Pages) and an in-process language server, written in Lua, for Grails navigation.
+Grails support for Neovim:
 
-The server needs no JDK, nothing to install and no build. It applies Grails' naming conventions to the syntax tree and answers only what it recognises, so it runs next to a Groovy server (`groovyls`) and their results merge.
+- a tree-sitter grammar for GSP (Groovy Server Pages);
+- the client for [grails-language-server](https://github.com/vdassios/grails-language-server) (`grails_ls`): Groovy and GSP diagnostics, completion, hover, definition and signature help with the project's own Groovy and Grails, GORM, and Grails conventions. `:GrailsInstallServer` downloads it;
+- a small in-process language server written in Lua (`grails`) for Grails navigation, which needs no JDK, nothing to install and no build. It applies Grails' naming conventions to the syntax tree. Once `grails_ls` has the project ready in a buffer, the Lua server leaves definition to it there.
 
-Status: stage 1. GSP highlighting and go to definition for views, templates, layouts, assets, controllers and actions. Completion, hover and GORM finders are not implemented yet.
+Status: GSP highlighting; `grails_ls` setup, install and commands; the Lua server's go to definition for views, templates, layouts, assets, controllers and actions.
 
 ## Requirements
 
@@ -12,6 +14,7 @@ Status: stage 1. GSP highlighting and go to definition for views, templates, lay
 - A Grails 3 or later project: Gradle layout, with `grails-app/` in each module.
 - The `groovy` and `html` tree-sitter parsers. The server reads Groovy files with the `groovy` parser, and GSP pages inject `html` and `groovy`.
 - To build the `gsp` parser: [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter) (`main` branch), or the `tree-sitter` CLI and a C compiler.
+- For `grails_ls`: `curl` (for `:GrailsInstallServer`) and the project's JDK, Java 11 or later (see "grails-language-server").
 
 ## Installation
 
@@ -33,12 +36,12 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
   'vdassios/grails.nvim',
   lazy = false,
   config = function()
-    vim.lsp.enable 'grails'
+    vim.lsp.enable { 'grails', 'grails_ls' }
   end,
 },
 ```
 
-The plugin ships `lsp/grails.lua`, so `vim.lsp.enable 'grails'` is all the server needs. It attaches to `gsp` and `groovy` buffers inside a Grails project and to nothing else.
+The plugin ships `lsp/grails.lua` and `lsp/grails_ls.lua`, so `vim.lsp.enable` is all the servers need. `grails` attaches to `gsp` and `groovy` buffers inside a Grails project and to nothing else. Enable either alone if you want only one. For `grails_ls`, run `:GrailsInstallServer` once.
 
 nvim-treesitter's `main` branch does not start highlighting by itself. If your config does not already do this, start it for GSP:
 
@@ -70,7 +73,26 @@ The `groovy` and `html` parsers are needed as well.
 - `commentstring` is `<%-- %s --%>`.
 - `K` shows LSP hover when a server attached to the buffer answers it, and otherwise says there is none. It never falls back to `:Man`, so `K` on `<head>` does not open `man head`.
 
-### Go to definition
+### grails-language-server
+
+`lsp/grails_ls.lua` starts the server jar on `gsp` and `groovy` buffers of a Gradle build: the root is the nearest directory with `settings.gradle`, `settings.gradle.kts` or `gradlew`. It does not start, and says why once, while the jar or `java` is missing.
+
+**Trust.** The server runs the project's Gradle build scripts and its AST transformations, so it executes project code. The config sends `initializationOptions.trusted = true`: enable `grails_ls` only for projects you trust.
+
+**JDK.** The server must run on the project's JDK (the one its Gradle build uses): it compiles with the project's Groovy, which reads the JDK's class files with its bundled ASM, so Groovy 2.5 (Grails 4) needs JDK 15 or older. The server's README has the table. `grails_ls` runs `$JAVA_HOME/bin/java`, else `java` from `PATH`; start Neovim with the project's `JAVA_HOME` (SDKMAN's `sdkman_auto_env` sets it from `.sdkmanrc` on `cd`), or set the path:
+
+```lua
+vim.g.grails_ls = {
+  java = '/path/to/jdk-11/bin/java', -- default: $JAVA_HOME/bin/java, else java
+  jar = '/path/to/grails-language-server-all.jar', -- default: the one :GrailsInstallServer downloads
+}
+```
+
+Both are read each time the server starts. To change anything else, such as JVM flags, override the whole command: `vim.lsp.config('grails_ls', { cmd = { 'java', '-Xmx2g', '-jar', require('grails.ls').jar() } })`.
+
+**Status.** The server reports `resolving`, `indexing`, `ready` and `failed`. The client turns them into LSP progress, so `vim.lsp.status()` and progress plugins show them, and notifies a failure with its reason.
+
+### Go to definition (Lua server)
 
 | Under the cursor | Goes to |
 |---|---|
@@ -88,11 +110,16 @@ Lookups search every module of a multi-module build, the current one first, beca
 | Command | Does |
 |---|---|
 | `:GrailsAlternate` | From a controller action, open its view. From a view, go to the matching action. From a domain class, controller or service, cycle to the artefact of the same name. |
-| `:GrailsReindex` | Drop the cached project index. It is also dropped when a file under `grails-app/` is saved. |
+| `:GrailsReindex` | Drop the Lua server's cached project index. It is also dropped when a file under `grails-app/` is saved. |
+| `:GrailsInstallServer` | Download the jar of the newest grails-language-server release, pre-releases included, to `stdpath('data')/grails.nvim/`. Does nothing when that release is installed; `:GrailsInstallServer!` downloads it again. A running client keeps the old jar until it restarts. |
+| `:GrailsReloadProject` | `grails_ls` resolves the Gradle project again, ignoring its cache. Run it after a dependency change. |
+| `:GrailsDownloadSources` | `grails_ls` fetches the sources jars the project's libraries lack, with the project's Gradle, so definition and hover reach library code. Reports how many libraries have sources now. |
 
 ## Known limits
 
-- **No type inference.** The server works on syntax and naming conventions. Members of an instance (`book.save()`, `book.author`), dynamic finders, and Grails methods such as `render` and `params` are neither completed nor resolved.
+These are the Lua server's; grails-language-server has its own list in its README.
+
+- **No type inference.** The Lua server works on syntax and naming conventions. Members of an instance (`book.save()`, `book.author`), dynamic finders, and Grails methods such as `render` and `params` are neither completed nor resolved.
 - **Workspace source only.** Views, templates, taglibs and members that come from Grails plugins (jars on the classpath) are unknown.
 - **tree-sitter-groovy parse errors.** The `groovy` parser fails on parts of many real Grails files. It mostly recovers locally, but a file can become a single error node. When the cursor is inside one, the server falls back to reading `call(key: 'value')` or `call key: 'value'` from the cursor line.
 - **GSP right after `<` or an HTML tag name.** `<${name}>`, `<option${attrs}>` and `<table<g:if ...>>` are parse errors. The page still highlights around them.

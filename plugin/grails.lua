@@ -30,3 +30,15 @@ end, { desc = 'Grails: go to the alternate file (action <-> view, domain <-> con
 vim.api.nvim_create_user_command('GrailsReindex', function()
   require('grails.project').reset()
 end, { desc = 'Grails: drop the cached project index' })
+
+vim.api.nvim_create_user_command('GrailsInstallServer', function(opts)
+  require('grails.ls').install(opts.bang)
+end, { bang = true, desc = 'Grails: download the newest grails-language-server release (! downloads it again)' })
+
+vim.api.nvim_create_user_command('GrailsReloadProject', function()
+  require('grails.ls').reload_project()
+end, { desc = 'Grails: grails_ls resolves the Gradle project again, ignoring its cache' })
+
+vim.api.nvim_create_user_command('GrailsDownloadSources', function()
+  require('grails.ls').download_sources()
+end, { desc = "Grails: grails_ls fetches the libraries' missing sources jars" })
