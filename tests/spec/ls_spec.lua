@@ -95,7 +95,7 @@ function T.config_runs_the_jar_on_java_home()
   local config = vim.lsp.config.grails_ls
   h.eq({ 'groovy', 'gsp' }, config.filetypes)
   h.eq({ trusted = true }, config.init_options)
-  h.eq(5000, config.exit_timeout)
+  h.eq(nil, config.exit_timeout, 'Neovim quits without waiting: the server exits when its input ends')
 end
 
 function T.root_dir_is_the_gradle_root_once_the_jar_exists()

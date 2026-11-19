@@ -11,9 +11,6 @@ return {
     require('grails.ls').root_dir(bufnr, on_dir)
   end,
   init_options = { trusted = true },
-  -- on quit, wait for the server's shutdown (under a second when idle) so it gets `exit`; without it the JVM outlives
-  -- Neovim by a minute
-  exit_timeout = 5000,
   handlers = {
     ['grails/status'] = function(...)
       return require('grails.ls').on_status(...)
