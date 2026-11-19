@@ -2,7 +2,7 @@
 
 Grails support for Neovim: a tree-sitter grammar for GSP (Groovy Server Pages), the client for [grails-language-server](https://github.com/vdassios/grails-language-server), and a small Lua server for Grails navigation that needs no JDK.
 
-<!-- Demo GIF: docs/media/ (phase 21b). -->
+![grails.nvim: :GrailsAlternate from a controller action to its GSP view, go to definition from a g:render template to the template, and back to the action](docs/media/grails-nvim.gif)
 
 ## Features
 
