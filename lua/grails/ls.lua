@@ -1,4 +1,4 @@
--- Client side of grails-language-server (`lsp/grails_ls.lua`): where the jar and `java` are, the `grails/status`
+-- Client side of grails-language-server (`after/lsp/grails_ls.lua`): where the jar and `java` are, the `grails/status`
 -- notification, the server's own requests, and `:GrailsInstallServer`.
 local M = {}
 

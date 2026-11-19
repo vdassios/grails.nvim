@@ -41,7 +41,7 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 },
 ```
 
-The plugin ships `lsp/grails.lua` and `lsp/grails_ls.lua`, so `vim.lsp.enable` is all the servers need. `grails` attaches to `gsp` and `groovy` buffers inside a Grails project and to nothing else. Enable either alone if you want only one. For `grails_ls`, run `:GrailsInstallServer` once.
+The plugin ships `lsp/grails.lua` and `after/lsp/grails_ls.lua`, so `vim.lsp.enable` is all the servers need. `grails` attaches to `gsp` and `groovy` buffers inside a Grails project and to nothing else. Enable either alone if you want only one. For `grails_ls`, run `:GrailsInstallServer` once.
 
 nvim-treesitter's `main` branch does not start highlighting by itself. If your config does not already do this, start it for GSP:
 
@@ -75,7 +75,7 @@ The `groovy` and `html` parsers are needed as well.
 
 ### grails-language-server
 
-`lsp/grails_ls.lua` starts the server jar on `gsp` and `groovy` buffers of a Gradle build: the root is the nearest directory with `settings.gradle`, `settings.gradle.kts` or `gradlew`. It does not start, and says why once, while the jar or `java` is missing.
+`after/lsp/grails_ls.lua` starts the server jar on `gsp` and `groovy` buffers of a Gradle build: the root is the nearest directory with `settings.gradle`, `settings.gradle.kts` or `gradlew`. It does not start, and says why once, while the jar or `java` is missing.
 
 **Trust.** The server runs the project's Gradle build scripts and its AST transformations, so it executes project code. The config sends `initializationOptions.trusted = true`: enable `grails_ls` only for projects you trust.
 

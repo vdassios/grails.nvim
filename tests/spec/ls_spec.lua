@@ -58,7 +58,7 @@ local function fake_server(answers)
   return server
 end
 
---- Starts `server` as grails_ls on `buf`, with the handlers of lsp/grails_ls.lua.
+--- Starts `server` as grails_ls on `buf`, with the handlers of after/lsp/grails_ls.lua.
 local function start(server, buf)
   local config = vim.tbl_extend('force', vim.lsp.config.grails_ls, { cmd = server.cmd, root_dir = h.app })
   local client = assert(vim.lsp.get_client_by_id(assert(vim.lsp.start(config, { bufnr = buf }))))
@@ -96,6 +96,35 @@ function T.config_runs_the_jar_on_java_home()
   h.eq({ 'groovy', 'gsp' }, config.filetypes)
   h.eq({ trusted = true }, config.init_options)
   h.eq(nil, config.exit_timeout, 'Neovim quits without waiting: the server exits when its input ends')
+end
+
+function T.config_wins_over_another_grails_ls_on_the_runtimepath()
+  -- nvim-lspconfig's lsp/grails_ls.lua, loaded before or after grails.nvim.
+  local other = vim.fn.tempname()
+  vim.fn.mkdir(other .. '/lsp', 'p')
+  vim.fn.writefile({ "return { cmd = { 'grails-language-server' }, root_markers = { 'gradlew' } }" }, other .. '/lsp/grails_ls.lua')
+  local saved = vim.o.runtimepath
+  for _, order in ipairs { 'before', 'after' } do
+    -- Plugin managers put plugin directories before every after/ directory (lazy.nvim, packages).
+    local rtp = vim.opt.runtimepath:get()
+    local at = order == 'before' and 1 or #rtp + 1
+    for i, dir in ipairs(rtp) do
+      if order == 'after' and dir:match '/after$' then
+        at = i
+        break
+      end
+    end
+    table.insert(rtp, at, other)
+    vim.opt.runtimepath = rtp
+    local ok, err = pcall(function()
+      local config = vim.lsp.config.grails_ls
+      h.eq('function', type(config.cmd), order)
+      h.eq('function', type(config.root_dir), order)
+      h.eq('function', type(config.handlers['grails/status']), order)
+    end)
+    vim.o.runtimepath = saved
+    assert(ok, err)
+  end
 end
 
 function T.root_dir_is_the_gradle_root_once_the_jar_exists()

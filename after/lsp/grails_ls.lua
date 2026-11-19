@@ -1,5 +1,7 @@
 -- grails-language-server (https://github.com/vdassios/grails-language-server). `:GrailsInstallServer` downloads it.
 -- It runs the project's Gradle build and its AST transformations, so enabling it trusts the project.
+-- Under after/ so it merges over any other lsp/grails_ls.lua on 'runtimepath' (nvim-lspconfig's), whatever the
+-- plugin load order; the user's vim.lsp.config('grails_ls', ...) still wins (:help lsp-config-merge).
 ---@type vim.lsp.Config
 return {
   -- a function, so the jar and `java` are looked up at each start (`vim.g.grails_ls`, `:GrailsInstallServer`)

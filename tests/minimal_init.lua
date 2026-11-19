@@ -2,6 +2,8 @@
 local root = vim.fn.fnamemodify(debug.getinfo(1, 'S').source:sub(2), ':p:h:h')
 
 vim.opt.runtimepath:prepend(root)
+-- after/lsp/grails_ls.lua; plugin managers add a plugin's after/ directory the same way.
+vim.opt.runtimepath:append(root .. '/after')
 -- `groovy` and `html` parsers, as installed by nvim-treesitter.
 vim.opt.runtimepath:append(vim.fn.stdpath 'data' .. '/site')
 vim.opt.swapfile = false
