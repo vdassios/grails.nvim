@@ -42,3 +42,13 @@ end, { desc = 'Grails: grails_ls resolves the Gradle project again, ignoring its
 vim.api.nvim_create_user_command('GrailsDownloadSources', function()
   require('grails.ls').download_sources()
 end, { desc = "Grails: grails_ls fetches the libraries' missing sources jars" })
+
+-- <Plug>(grails-*) mappings for the commands, and default keys for them in Grails buffers (lua/grails/keymaps.lua).
+require('grails.keymaps').define_plugs()
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = { 'gsp', 'groovy' },
+  group = vim.api.nvim_create_augroup('grails-keymaps', { clear = true }),
+  callback = function(ev)
+    require('grails.keymaps').set_defaults(ev.buf)
+  end,
+})
