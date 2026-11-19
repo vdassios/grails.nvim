@@ -21,6 +21,18 @@ function T.root_without_settings_is_the_grails_app_parent()
   vim.fn.delete(dir, 'rf')
 end
 
+function T.a_build_nested_in_another_build_is_its_own_project()
+  local dir = vim.fn.tempname()
+  vim.fn.mkdir(dir .. '/demo/app/grails-app/views', 'p')
+  vim.fn.mkdir(dir .. '/demo/app/core/grails-app/views', 'p')
+  dir = vim.uv.fs_realpath(dir)
+  vim.fn.writefile({}, dir .. '/settings.gradle')
+  vim.fn.writefile({}, dir .. '/demo/app/settings.gradle.kts')
+  h.eq(dir .. '/demo/app', project.find_root(dir .. '/demo/app/grails-app/views/index.gsp'))
+  h.eq(dir .. '/demo/app', project.find_root(dir .. '/demo/app/core/grails-app/views/index.gsp'), 'a module of the nested build')
+  vim.fn.delete(dir, 'rf')
+end
+
 function T.modules()
   h.eq({ h.path 'core', h.path 'web' }, project.modules(h.app))
 end

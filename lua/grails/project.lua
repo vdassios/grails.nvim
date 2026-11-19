@@ -43,7 +43,8 @@ function M.logical_name(class, suffix)
 end
 
 --- Project root for a file: the nearest ancestor holding `grails-app/`, then the
---- outermost ancestor of that with a `settings.gradle(.kts)`. Nil outside a Grails project.
+--- nearest ancestor of that with a `settings.gradle(.kts)`, as Gradle picks the build
+--- (a Grails build nested in another Gradle build is its own project). Nil outside a Grails project.
 --- @param path string
 --- @return string?
 function M.find_root(path)
@@ -56,16 +57,8 @@ function M.find_root(path)
     return nil
   end
   local root = vim.fs.dirname(app)
-  local dirs = { root }
-  for dir in vim.fs.parents(root) do
-    dirs[#dirs + 1] = dir
-  end
-  for i = #dirs, 1, -1 do
-    if is_file(dirs[i] .. '/settings.gradle') or is_file(dirs[i] .. '/settings.gradle.kts') then
-      return dirs[i]
-    end
-  end
-  return root
+  local settings = vim.fs.find({ 'settings.gradle', 'settings.gradle.kts' }, { upward = true, path = root, type = 'file', limit = 1 })[1]
+  return settings and vim.fs.dirname(settings) or root
 end
 
 --- @class grails.Artefact
