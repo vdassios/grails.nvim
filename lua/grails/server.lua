@@ -3,18 +3,15 @@
 -- RPC surface the client talks to.
 local M = {}
 
---- @class grails.State
---- @field encoding 'utf-8'|'utf-16'
-
---- @type table<string, fun(state: grails.State, params: any): any>
+--- @type table<string, fun(params: any): any>
 local requests = {}
 
-function requests.initialize(state, params)
-  local offered = vim.tbl_get(params or {}, 'capabilities', 'general', 'positionEncodings') or {}
-  state.encoding = vim.list_contains(offered, 'utf-8') and 'utf-8' or 'utf-16'
+function requests.initialize()
   return {
     capabilities = {
-      positionEncoding = state.encoding,
+      -- Byte columns, as Neovim and tree-sitter count. Neovim offers UTF-8 and keeps one encoding per client, so
+      -- this server and grails_ls (UTF-16) attach to the same buffer without converting between them.
+      positionEncoding = 'utf-8',
       -- No textDocumentSync: a request reads the buffer itself (util.read), so Neovim sends no document text.
       definitionProvider = true,
     },
@@ -26,20 +23,18 @@ function requests.shutdown()
   return vim.NIL
 end
 
-requests['textDocument/definition'] = function(state, params)
+requests['textDocument/definition'] = function(params)
   -- grails_ls answers the same references once its project is ready: two answers would make every jump a choice
   local buf = require('grails.util').find_buf(vim.uri_to_fname(params.textDocument.uri))
   if buf and require('grails.ls').ready(buf) then
     return {}
   end
-  return require('grails.features.definition').definition(params, state.encoding)
+  return require('grails.features.definition').definition(params)
 end
 
 --- @param dispatchers vim.lsp.rpc.Dispatchers
 --- @return vim.lsp.rpc.PublicClient
 function M.start(dispatchers)
-  --- @type grails.State
-  local state = { encoding = 'utf-16' }
   local closing = false
   local last_id = 0
 
@@ -62,7 +57,7 @@ function M.start(dispatchers)
         if not handler then
           callback { code = -32601, message = 'grails.nvim: method not found: ' .. method }
         else
-          local ok, result = xpcall(handler, debug.traceback, state, params)
+          local ok, result = xpcall(handler, debug.traceback, params)
           if ok then
             callback(nil, result)
           else

@@ -56,29 +56,17 @@ function T.no_document_text_is_sent()
   h.eq({ 'initialized' }, sent)
 end
 
-function T.utf16_client_gets_utf16_columns()
+function T.positions_are_byte_columns()
   local buf = h.edit 'web/grails-app/views/book/show.gsp'
-  local id = vim.lsp.start({
-    name = 'grails-utf16',
-    cmd = require('grails.server').start,
-    root_dir = h.app,
-    capabilities = { general = { positionEncodings = { 'utf-16' } } },
-  }, { bufnr = buf })
-  local client = assert(vim.lsp.get_client_by_id(id))
-  vim.wait(2000, function()
-    return client.initialized
-  end)
-  h.eq('utf-16', client.offset_encoding)
-  -- "Bücher – " sits before the tag: 12 bytes, 9 UTF-16 code units.
+  -- "Bücher – " sits before the tag: 12 bytes, 9 characters.
   local line = vim.api.nvim_buf_get_lines(buf, 5, 6, false)[1]
   local _, byte = h.pos({ line }, '/book/row', 1)
-  local res = client:request_sync('textDocument/definition', {
+  local res = h.client(buf):request_sync('textDocument/definition', {
     textDocument = { uri = vim.uri_from_bufnr(buf) },
-    position = { line = 5, character = vim.str_utfindex(line, 'utf-16', byte) },
+    position = { line = 5, character = byte },
   }, 1000, buf)
   h.eq(1, #res.result)
   h.eq(vim.uri_from_fname(h.path 'web/grails-app/views/book/_row.gsp'), res.result[1].uri)
-  client:stop(true)
 end
 
 return T

@@ -52,12 +52,12 @@ function M.target(path, action)
     local name = vim.fs.basename(path):gsub('%.[^.]+$', '')
     local controllers = controller and project.artefacts(root, { kind = 'controller', name = controller }, path) or {}
     for _, a in ipairs(controllers) do
-      local doc, _, member = definition.find_in_class(a.path, a.class, name)
+      local _, _, member = definition.find_in_class(a.path, a.class, name)
       if member then
-        return util.location(a.path, 'utf-8', doc, member)
+        return util.location(a.path, member)
       end
     end
-    return controllers[1] and util.location(controllers[1].path, 'utf-8')
+    return controllers[1] and util.location(controllers[1].path)
   end
   local current = project.artefacts(root, { path = path })[1]
   if not current then
@@ -70,13 +70,13 @@ function M.target(path, action)
       'views/' .. current.name .. '/' .. action .. '.gson',
     }, path)
     if views[1] then
-      return util.location(views[1], 'utf-8')
+      return util.location(views[1])
     end
   end
   local list, i = cycle(root, current.name, path)
   local next = list[i % #list + 1]
   if next and next.path ~= path then
-    return util.location(next.path, 'utf-8')
+    return util.location(next.path)
   end
 end
 

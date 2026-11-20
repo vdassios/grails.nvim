@@ -79,42 +79,15 @@ function M.node_text(doc, node)
   return table.concat(parts, '\n')
 end
 
---- LSP character offset to byte column.
---- @param line string
---- @param character integer
---- @param encoding 'utf-8'|'utf-16'|'utf-32'
---- @return integer
-function M.to_byte(line, character, encoding)
-  if encoding == 'utf-8' then
-    return character
-  end
-  return vim.str_byteindex(line, encoding, character, false)
-end
-
---- Byte column to LSP character offset.
---- @param line string
---- @param col integer
---- @param encoding 'utf-8'|'utf-16'|'utf-32'
---- @return integer
-function M.from_byte(line, col, encoding)
-  if encoding == 'utf-8' then
-    return col
-  end
-  return vim.str_utfindex(line, encoding, col, false)
-end
-
---- An LSP Location for a file, at line 0 or at a node's range.
+--- A UTF-8 LSP Location for a file, at line 0 or at a node's range.
 --- @param path string
---- @param encoding 'utf-8'|'utf-16'|'utf-32'
---- @param doc? grails.Doc the file's text, needed with `node`
 --- @param node? TSNode
 --- @return lsp.Location
-function M.location(path, encoding, doc, node)
+function M.location(path, node)
   local range = { start = { line = 0, character = 0 }, ['end'] = { line = 0, character = 0 } }
-  if doc and node then
+  if node then
     local sr, sc, er, ec = node:range()
-    range.start = { line = sr, character = M.from_byte(doc.lines[sr + 1], sc, encoding) }
-    range['end'] = { line = er, character = M.from_byte(doc.lines[er + 1], ec, encoding) }
+    range = { start = { line = sr, character = sc }, ['end'] = { line = er, character = ec } }
   end
   return { uri = vim.uri_from_fname(path), range = range }
 end

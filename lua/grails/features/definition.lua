@@ -36,12 +36,11 @@ end
 --- @class grails.Request
 --- @field root string
 --- @field path string
---- @field encoding 'utf-8'|'utf-16'
 --- @field controller? string logical name of the controller the cursor belongs to
 
 local function files(req, rels)
   return vim.tbl_map(function(path)
-    return util.location(path, req.encoding)
+    return util.location(path)
   end, project.find_files(req.root, rels, req.path))
 end
 
@@ -81,7 +80,7 @@ local function asset(req, tag, value)
       local path = vim.fs.joinpath(dir, name)
       local stat = vim.uv.fs_stat(path)
       if stat and stat.type == 'file' then
-        found[#found + 1] = util.location(path, req.encoding)
+        found[#found + 1] = util.location(path)
       end
     end
     if #found > 0 then
@@ -136,7 +135,7 @@ local function controller(req, name)
     local doc, class = M.find_in_class(a.path, a.class)
     -- A file that cannot be read (deleted since it was listed, no permission) is no target.
     if doc then
-      found[#found + 1] = util.location(a.path, req.encoding, doc, class)
+      found[#found + 1] = util.location(a.path, class)
     end
   end
   return found
@@ -148,9 +147,9 @@ local function action(req, controller_name, name)
   end
   local found = {}
   for _, a in ipairs(project.artefacts(req.root, { kind = 'controller', name = controller_name }, req.path)) do
-    local doc, _, member = M.find_in_class(a.path, a.class, name)
+    local _, _, member = M.find_in_class(a.path, a.class, name)
     if member then
-      found[#found + 1] = util.location(a.path, req.encoding, doc, member)
+      found[#found + 1] = util.location(a.path, member)
     end
   end
   return found
@@ -218,10 +217,9 @@ end
 
 --- Definition targets for a request, or an empty list when the cursor is on
 --- nothing this server knows (results then come from other servers alone).
---- @param params lsp.TextDocumentPositionParams
---- @param encoding 'utf-8'|'utf-16'
+--- @param params lsp.TextDocumentPositionParams with a UTF-8 (byte) position
 --- @return lsp.Location[]
-function M.definition(params, encoding)
+function M.definition(params)
   local path = vim.uri_to_fname(params.textDocument.uri)
   local lang = path:match '%.gsp$' and 'gsp' or path:match '%.groovy$' and 'groovy'
   local root = lang and project.find_root(path)
@@ -230,13 +228,12 @@ function M.definition(params, encoding)
     return {}
   end
   local row = params.position.line
-  local col = util.to_byte(doc.lines[row + 1] or '', params.position.character, encoding)
-  local ctx = context.at(doc, lang, row, col)
+  local ctx = context.at(doc, lang, row, params.position.character)
   if not ctx or not ctx.value or ctx.value == '' or ctx.value:find('$', 1, true) then
     return {}
   end
 
-  local req = { root = root, path = path, encoding = encoding }
+  local req = { root = root, path = path }
   if lang == 'gsp' then
     local base = project.view_dir(path)
     req.controller = base and base ~= '' and base:match '^[^/]+' or nil
