@@ -101,4 +101,55 @@ function T.groovy_missing_or_computed_targets_are_empty()
   h.eq({}, define(BOOKS, "action: 'helper'", 10)) -- private methods are not actions
 end
 
+-- Files changed outside Neovim -----------------------------------------------------
+
+--- A one-module project in a temporary directory (real path), with a view linking to the `book` controller.
+local function scratch_project()
+  local dir = vim.fn.tempname()
+  vim.fn.mkdir(dir .. '/grails-app/views/book', 'p')
+  vim.fn.mkdir(dir .. '/grails-app/controllers/shop', 'p')
+  dir = vim.uv.fs_realpath(dir)
+  vim.fn.writefile({}, dir .. '/settings.gradle')
+  vim.fn.writefile({ '<g:link controller="book">Books</g:link>' }, dir .. '/grails-app/views/book/index.gsp')
+  return dir
+end
+
+local CONTROLLER = { 'package shop', '', 'class BookController {', '}' }
+
+--- Definition results, as `path:line` relative to `dir`, for `controller="book"` in the scratch project's view.
+local function define_book(dir)
+  local buf = vim.fn.bufadd(dir .. '/grails-app/views/book/index.gsp')
+  vim.cmd.buffer(buf)
+  local res = h.client(buf):request_sync('textDocument/definition', {
+    textDocument = { uri = vim.uri_from_bufnr(buf) },
+    position = { line = 0, character = #'<g:link controller="b' },
+  }, 2000, buf)
+  assert(res and not res.err, vim.inspect(res))
+  return vim.tbl_map(function(loc)
+    return vim.fs.relpath(dir, vim.uri_to_fname(loc.uri)) .. ':' .. loc.range.start.line
+  end, res.result)
+end
+
+local function drop_project(dir)
+  for _, client in ipairs(vim.lsp.get_clients { name = 'grails' }) do
+    if client.root_dir == dir then
+      client:stop(true)
+    end
+  end
+  vim.cmd.bwipeout { dir .. '/grails-app/views/book/index.gsp', bang = true }
+  vim.fn.delete(dir, 'rf')
+end
+
+function T.an_unreadable_target_gives_no_location()
+  local dir = scratch_project()
+  local path = dir .. '/grails-app/controllers/shop/BookController.groovy'
+  local ok, err = pcall(function()
+    vim.fn.writefile(CONTROLLER, path)
+    vim.fn.setfperm(path, '---------')
+    h.eq({}, define_book(dir))
+  end)
+  drop_project(dir)
+  assert(ok, err)
+end
+
 return T

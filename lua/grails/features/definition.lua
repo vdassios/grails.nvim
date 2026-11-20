@@ -134,7 +134,10 @@ local function controller(req, name)
   local found = {}
   for _, a in ipairs(project.artefacts(req.root, { kind = 'controller', name = name }, req.path)) do
     local doc, class = M.find_in_class(a.path, a.class)
-    found[#found + 1] = util.location(a.path, req.encoding, doc, class)
+    -- A file that cannot be read (deleted since it was listed, no permission) is no target.
+    if doc then
+      found[#found + 1] = util.location(a.path, req.encoding, doc, class)
+    end
   end
   return found
 end
