@@ -58,53 +58,99 @@
       "type": "PREC_RIGHT",
       "value": 0,
       "content": {
-        "type": "REPEAT1",
-        "content": {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "PATTERN",
-              "value": "[^<$%!@\\\\]+"
-            },
-            {
-              "type": "PATTERN",
-              "value": "<\\/?[a-zA-Z][a-zA-Z0-9_-]*[^a-zA-Z0-9_:<$%!@\\\\-]"
-            },
-            {
-              "type": "PATTERN",
-              "value": "<[^a-zA-Z\\/%<$]"
-            },
-            {
-              "type": "PATTERN",
-              "value": "<\\/[^a-zA-Z%<$]"
-            },
-            {
-              "type": "STRING",
-              "value": "$"
-            },
-            {
-              "type": "STRING",
-              "value": "%"
-            },
-            {
-              "type": "STRING",
-              "value": "!"
-            },
-            {
-              "type": "STRING",
-              "value": "@"
-            },
-            {
-              "type": "STRING",
-              "value": "\\"
-            },
-            {
-              "type": "STRING",
-              "value": "\\$"
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "REPEAT1",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_text"
             }
-          ]
-        }
+          },
+          {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "STRING",
+                    "value": "<"
+                  },
+                  {
+                    "type": "STRING",
+                    "value": "</"
+                  }
+                ]
+              },
+              {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "_namespace"
+                  },
+                  {
+                    "type": "BLANK"
+                  }
+                ]
+              },
+              {
+                "type": "REPEAT",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_text"
+                }
+              }
+            ]
+          }
+        ]
       }
+    },
+    "_text": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "PATTERN",
+          "value": "[^<$%!@\\\\]+"
+        },
+        {
+          "type": "PATTERN",
+          "value": "<\\/?[a-zA-Z][a-zA-Z0-9_-]*[^a-zA-Z0-9_:<$%!@\\\\-]"
+        },
+        {
+          "type": "PATTERN",
+          "value": "<[^a-zA-Z\\/%<$]"
+        },
+        {
+          "type": "PATTERN",
+          "value": "<\\/[^a-zA-Z%<$]"
+        },
+        {
+          "type": "STRING",
+          "value": "$"
+        },
+        {
+          "type": "STRING",
+          "value": "%"
+        },
+        {
+          "type": "STRING",
+          "value": "!"
+        },
+        {
+          "type": "STRING",
+          "value": "@"
+        },
+        {
+          "type": "STRING",
+          "value": "\\"
+        },
+        {
+          "type": "STRING",
+          "value": "\\$"
+        }
+      ]
     },
     "expression": {
       "type": "SEQ",
@@ -560,13 +606,25 @@
           "type": "FIELD",
           "name": "namespace",
           "content": {
-            "type": "SYMBOL",
-            "name": "namespace"
+            "type": "ALIAS",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_namespace"
+            },
+            "named": true,
+            "value": "namespace"
           }
         },
         {
-          "type": "STRING",
-          "value": ":"
+          "type": "TOKEN",
+          "content": {
+            "type": "PREC",
+            "value": 1,
+            "content": {
+              "type": "STRING",
+              "value": ":"
+            }
+          }
         },
         {
           "type": "FIELD",
@@ -578,9 +636,16 @@
         }
       ]
     },
-    "namespace": {
-      "type": "PATTERN",
-      "value": "[a-zA-Z][a-zA-Z0-9_]*"
+    "_namespace": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PREC",
+        "value": 1,
+        "content": {
+          "type": "PATTERN",
+          "value": "[a-zA-Z][a-zA-Z0-9_]*"
+        }
+      }
     },
     "tag_name": {
       "type": "PATTERN",

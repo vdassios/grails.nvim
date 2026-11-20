@@ -21,7 +21,6 @@ The `groovy` and `html` parsers are needed as well.
 
 ## Known limits
 
-- **GSP right after `<` or an HTML tag name.** `<${name}>`, `<option${attrs}>` and `<table<g:if ...>>` are parse errors. The page still highlights around them.
 - **Nesting limits.** `${ }` balances braces eight levels deep, and `[...]` attribute values balance brackets four levels deep. Deeper code ends the construct early.
 - **No `indents.scm` for GSP.** Indentation comes from the html injection.
 
@@ -34,5 +33,7 @@ The grammar has been checked against public Grails code:
 | [openboxes](https://github.com/openboxes/openboxes) | 622 | 0 |
 | [asgard](https://github.com/Netflix/asgard) | 146 | 0 |
 | [collectory](https://github.com/AtlasOfLivingAustralia/collectory) | 145 | 0 |
-| [apache/grails-core](https://github.com/apache/grails-core), every `.gsp` | 694 | 2: an unclosed `<%@` directive in the page itself, and `<table<g:if ...>>` (limit above) |
-| Templates taken from grails-core's GSP tests | 585 | 4: `<${"title"}>` (limit above), and 3 the extraction cut off |
+| [apache/grails-core](https://github.com/apache/grails-core), every `.gsp` | 694 | 2: an unclosed `<%@` directive in the page itself, and `<table<g:if ...>>` |
+| Templates taken from grails-core's GSP tests | 585 | 4: `<${"title"}>`, and 3 the extraction cut off |
+
+`<table<g:if ...>>` and `<${"title"}>` were parse errors when these counts were taken; a GSP construct right after `<`, `</` or an HTML tag name now parses (`test/corpus/escapes.txt`).

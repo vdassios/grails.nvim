@@ -15,3 +15,55 @@ costs 5$ or 10% off! mail@example.org a\b 1 < 2 <> </ x
 
 (document
   (content))
+
+================================================================================
+Lone less-than signs
+================================================================================
+mail <john@example.com>, a<<b, x <<y
+--------------------------------------------------------------------------------
+
+(document
+  (content)
+  (content)
+  (content)
+  (content)
+  (content))
+
+================================================================================
+Less-than signs at the end of the page
+================================================================================
+<p>a < </
+--------------------------------------------------------------------------------
+
+(document
+  (content)
+  (content))
+
+================================================================================
+GSP right after a less-than sign
+================================================================================
+<${name}><option${attrs}><table<g:if test="x">></div${x}>
+--------------------------------------------------------------------------------
+
+(document
+  (content)
+  (expression
+    (code))
+  (content)
+  (content)
+  (expression
+    (code))
+  (content)
+  (content)
+  (gsp_tag_open
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text))))
+  (content)
+  (content)
+  (expression
+    (code))
+  (content))

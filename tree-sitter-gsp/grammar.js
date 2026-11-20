@@ -86,34 +86,50 @@ export default grammar({
 
     // Template text (HTML, CSS, JavaScript). Split into small tokens so that
     // the start of every GSP construct ends it; the tokens are hidden.
-    content: _ =>
+    content: $ =>
       prec.right(
-        repeat1(
-          choice(
-            /[^<$%!@\\]+/,
-            // An HTML tag name: not a GSP tag, because no colon follows it.
-            /<\/?[a-zA-Z][a-zA-Z0-9_-]*[^a-zA-Z0-9_:<$%!@\\-]/,
-            /<[^a-zA-Z\/%<$]/,
-            /<\/[^a-zA-Z%<$]/,
-            '$',
-            '%',
-            '!',
-            '@',
-            '\\',
-            '\\$', // `\${` is literal text
-          ),
+        choice(
+          repeat1($._text),
+          // A `<` or `</` that no text token matches (`1 << 2`, `<john@example.com>`,
+          // `<option${attrs}>`, a `<` at the end) is a GSP tag's opener followed
+          // by something other than `namespace:`. The namespace and `:` tokens win
+          // over text (lexical precedence), so a real tag still parses as one. It
+          // can only start a content node: inside one it would take the `<` of
+          // every GSP tag.
+          seq(choice('<', '</'), optional($._namespace), repeat($._text)),
         ),
+      ),
+
+    _text: _ =>
+      choice(
+        /[^<$%!@\\]+/,
+        // An HTML tag name: not a GSP tag, because no colon follows it.
+        /<\/?[a-zA-Z][a-zA-Z0-9_-]*[^a-zA-Z0-9_:<$%!@\\-]/,
+        /<[^a-zA-Z\/%<$]/,
+        /<\/[^a-zA-Z%<$]/,
+        '$',
+        '%',
+        '!',
+        '@',
+        '\\',
+        '\\$', // `\${` is literal text
       ),
 
     expression: $ => seq('${', optional(alias(EXPRESSION_CODE, $.code)), '}'),
 
     scriptlet: $ =>
-      choice(seq('<%', optional(alias(JSP_CODE, $.code)), '%>'), seq('%{', optional(alias(GSCRIPT_CODE, $.code)), '}%')),
+      choice(
+        seq('<%', optional(alias(JSP_CODE, $.code)), '%>'),
+        seq('%{', optional(alias(GSCRIPT_CODE, $.code)), '}%'),
+      ),
 
     output_scriptlet: $ => seq('<%=', optional(alias(JSP_CODE, $.code)), '%>'),
 
     declaration: $ =>
-      choice(seq('<%!', optional(alias(JSP_CODE, $.code)), '%>'), seq('!{', optional(alias(GDECLARATION_CODE, $.code)), '}!')),
+      choice(
+        seq('<%!', optional(alias(JSP_CODE, $.code)), '%>'),
+        seq('!{', optional(alias(GDECLARATION_CODE, $.code)), '}!'),
+      ),
 
     directive: $ => choice(seq('<%@', $._directive_body, '%>'), seq('@{', $._directive_body, GDIRECTIVE_BODY_END)),
 
@@ -142,9 +158,10 @@ export default grammar({
 
     gsp_tag_close: $ => seq('</', $._gsp_tag_name, optional($._ws), '>'),
 
-    _gsp_tag_name: $ => seq(field('namespace', $.namespace), ':', field('name', $.tag_name)),
+    _gsp_tag_name: $ =>
+      seq(field('namespace', alias($._namespace, $.namespace)), token(prec(1, ':')), field('name', $.tag_name)),
 
-    namespace: _ => /[a-zA-Z][a-zA-Z0-9_]*/,
+    _namespace: _ => token(prec(1, /[a-zA-Z][a-zA-Z0-9_]*/)),
 
     // `/` separates path segments in `<tmpl:/path/name/>`; a trailing `/` belongs to `/>`.
     tag_name: _ => /\/?[a-zA-Z0-9_-]+(\/[a-zA-Z0-9_-]+)*/,
