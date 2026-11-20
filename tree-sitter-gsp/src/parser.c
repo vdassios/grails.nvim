@@ -40,12 +40,12 @@ enum ts_symbol_identifiers {
   anon_sym_PERCENT_GT = 18,
   anon_sym_PERCENT_LBRACE = 19,
   aux_sym_scriptlet_token2 = 20,
-  anon_sym_RBRACE_PERCENT = 21,
+  aux_sym_scriptlet_token3 = 21,
   anon_sym_LT_PERCENT_EQ = 22,
   anon_sym_LT_PERCENT_BANG = 23,
   anon_sym_BANG_LBRACE = 24,
   aux_sym_declaration_token1 = 25,
-  anon_sym_RBRACE_BANG = 26,
+  aux_sym_declaration_token2 = 26,
   anon_sym_LT_PERCENT_AT = 27,
   anon_sym_AT_LBRACE = 28,
   aux_sym__directive_first_attribute_token1 = 29,
@@ -127,12 +127,12 @@ static const char * const ts_symbol_names[] = {
   [anon_sym_PERCENT_GT] = "%>",
   [anon_sym_PERCENT_LBRACE] = "%{",
   [aux_sym_scriptlet_token2] = "code",
-  [anon_sym_RBRACE_PERCENT] = "}%",
+  [aux_sym_scriptlet_token3] = "}%",
   [anon_sym_LT_PERCENT_EQ] = "<%=",
   [anon_sym_LT_PERCENT_BANG] = "<%!",
   [anon_sym_BANG_LBRACE] = "!{",
   [aux_sym_declaration_token1] = "code",
-  [anon_sym_RBRACE_BANG] = "}!",
+  [aux_sym_declaration_token2] = "}!",
   [anon_sym_LT_PERCENT_AT] = "<%@",
   [anon_sym_AT_LBRACE] = "@{",
   [aux_sym__directive_first_attribute_token1] = "=",
@@ -214,12 +214,12 @@ static const TSSymbol ts_symbol_map[] = {
   [anon_sym_PERCENT_GT] = anon_sym_PERCENT_GT,
   [anon_sym_PERCENT_LBRACE] = anon_sym_PERCENT_LBRACE,
   [aux_sym_scriptlet_token2] = aux_sym_expression_token1,
-  [anon_sym_RBRACE_PERCENT] = anon_sym_RBRACE_PERCENT,
+  [aux_sym_scriptlet_token3] = aux_sym_scriptlet_token3,
   [anon_sym_LT_PERCENT_EQ] = anon_sym_LT_PERCENT_EQ,
   [anon_sym_LT_PERCENT_BANG] = anon_sym_LT_PERCENT_BANG,
   [anon_sym_BANG_LBRACE] = anon_sym_BANG_LBRACE,
   [aux_sym_declaration_token1] = aux_sym_expression_token1,
-  [anon_sym_RBRACE_BANG] = anon_sym_RBRACE_BANG,
+  [aux_sym_declaration_token2] = aux_sym_declaration_token2,
   [anon_sym_LT_PERCENT_AT] = anon_sym_LT_PERCENT_AT,
   [anon_sym_AT_LBRACE] = anon_sym_AT_LBRACE,
   [aux_sym__directive_first_attribute_token1] = aux_sym__directive_first_attribute_token1,
@@ -364,7 +364,7 @@ static const TSSymbolMetadata ts_symbol_metadata[] = {
     .visible = true,
     .named = true,
   },
-  [anon_sym_RBRACE_PERCENT] = {
+  [aux_sym_scriptlet_token3] = {
     .visible = true,
     .named = false,
   },
@@ -384,7 +384,7 @@ static const TSSymbolMetadata ts_symbol_metadata[] = {
     .visible = true,
     .named = true,
   },
-  [anon_sym_RBRACE_BANG] = {
+  [aux_sym_declaration_token2] = {
     .visible = true,
     .named = false,
   },
@@ -860,7 +860,7 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
       END_STATE();
     case 1:
       if (lookahead == '!') ADVANCE(133);
-      if (lookahead == '}') ADVANCE(72);
+      if (lookahead == '}') ADVANCE(1);
       if (lookahead != 0) ADVANCE(132);
       END_STATE();
     case 2:
@@ -1122,7 +1122,7 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
       END_STATE();
     case 42:
       if (lookahead == '%') ADVANCE(128);
-      if (lookahead == '}') ADVANCE(74);
+      if (lookahead == '}') ADVANCE(42);
       if (lookahead != 0) ADVANCE(127);
       END_STATE();
     case 43:
@@ -1554,7 +1554,7 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
       if (lookahead != 0) ADVANCE(127);
       END_STATE();
     case 128:
-      ACCEPT_TOKEN(anon_sym_RBRACE_PERCENT);
+      ACCEPT_TOKEN(aux_sym_scriptlet_token3);
       END_STATE();
     case 129:
       ACCEPT_TOKEN(anon_sym_LT_PERCENT_EQ);
@@ -1571,7 +1571,7 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
       if (lookahead != 0) ADVANCE(132);
       END_STATE();
     case 133:
-      ACCEPT_TOKEN(anon_sym_RBRACE_BANG);
+      ACCEPT_TOKEN(aux_sym_declaration_token2);
       END_STATE();
     case 134:
       ACCEPT_TOKEN(anon_sym_LT_PERCENT_AT);
@@ -3556,7 +3556,7 @@ static const uint16_t ts_small_parse_table[] = {
     ACTIONS(427), 1,
       aux_sym_declaration_token1,
     ACTIONS(429), 1,
-      anon_sym_RBRACE_BANG,
+      aux_sym_declaration_token2,
   [1816] = 2,
     ACTIONS(431), 1,
       aux_sym_expression_token1,
@@ -3569,7 +3569,7 @@ static const uint16_t ts_small_parse_table[] = {
       anon_sym_PERCENT_GT,
   [1830] = 2,
     ACTIONS(437), 1,
-      anon_sym_RBRACE_PERCENT,
+      aux_sym_scriptlet_token3,
     ACTIONS(439), 1,
       aux_sym_scriptlet_token2,
   [1837] = 2,
@@ -3639,7 +3639,7 @@ static const uint16_t ts_small_parse_table[] = {
       anon_sym_PERCENT_GT,
   [1927] = 1,
     ACTIONS(481), 1,
-      anon_sym_RBRACE_BANG,
+      aux_sym_declaration_token2,
   [1931] = 1,
     ACTIONS(483), 1,
       anon_sym_RBRACE,
@@ -3666,7 +3666,7 @@ static const uint16_t ts_small_parse_table[] = {
       anon_sym_RBRACE,
   [1963] = 1,
     ACTIONS(485), 1,
-      anon_sym_RBRACE_PERCENT,
+      aux_sym_scriptlet_token3,
   [1967] = 1,
     ACTIONS(495), 1,
       anon_sym_RBRACE,

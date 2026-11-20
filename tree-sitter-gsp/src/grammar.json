@@ -240,7 +240,12 @@
               ]
             },
             {
-              "type": "STRING",
+              "type": "ALIAS",
+              "content": {
+                "type": "PATTERN",
+                "value": "\\}+%"
+              },
+              "named": false,
               "value": "}%"
             }
           ]
@@ -335,7 +340,12 @@
               ]
             },
             {
-              "type": "STRING",
+              "type": "ALIAS",
+              "content": {
+                "type": "PATTERN",
+                "value": "\\}+!"
+              },
+              "named": false,
               "value": "}!"
             }
           ]

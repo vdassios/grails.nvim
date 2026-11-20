@@ -55,6 +55,10 @@ const EXPRESSION_CODE = new RegExp(`(${CODE_ATOM}|${braces(7)})+`);
 const JSP_CODE = /([^%]|%+[^%>])+/; // up to %>
 const GSCRIPT_CODE = /([^}]|\}+[^}%])+/; // up to }%
 const GDECLARATION_CODE = /([^}]|\}+[^}!])+/; // up to }!
+// Their closers take a whole run of `}`, so `%{ x.each { y }}%` ends at `}}%`.
+// The `}` before the closer's own then belongs to the closer, not to the code.
+const GSCRIPT_END = /\}+%/;
+const GDECLARATION_END = /\}+!/;
 const GDIRECTIVE_BODY_END = '}';
 // `=` between an attribute name and its value; GSP allows whitespace around it.
 const EQUALS = /\s*=\s*/;
@@ -120,7 +124,7 @@ export default grammar({
     scriptlet: $ =>
       choice(
         seq('<%', optional(alias(JSP_CODE, $.code)), '%>'),
-        seq('%{', optional(alias(GSCRIPT_CODE, $.code)), '}%'),
+        seq('%{', optional(alias(GSCRIPT_CODE, $.code)), alias(GSCRIPT_END, '}%')),
       ),
 
     output_scriptlet: $ => seq('<%=', optional(alias(JSP_CODE, $.code)), '%>'),
@@ -128,7 +132,7 @@ export default grammar({
     declaration: $ =>
       choice(
         seq('<%!', optional(alias(JSP_CODE, $.code)), '%>'),
-        seq('!{', optional(alias(GDECLARATION_CODE, $.code)), '}!'),
+        seq('!{', optional(alias(GDECLARATION_CODE, $.code)), alias(GDECLARATION_END, '}!')),
       ),
 
     directive: $ => choice(seq('<%@', $._directive_body, '%>'), seq('@{', $._directive_body, GDIRECTIVE_BODY_END)),

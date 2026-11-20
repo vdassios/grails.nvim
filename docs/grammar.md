@@ -22,6 +22,7 @@ The `groovy` and `html` parsers are needed as well.
 ## Known limits
 
 - **Nesting limits.** `${ }` balances braces eight levels deep, and `[...]` attribute values balance brackets four levels deep. Deeper code ends the construct early.
+- **`}` before `}%` or `}!`.** In `%{ x.each { y }}%` the closer takes the whole run of `}`, so the Groovy injection does not see the closure's last `}`.
 - **No `indents.scm` for GSP.** Indentation comes from the html injection.
 
 ## Checked against public code
