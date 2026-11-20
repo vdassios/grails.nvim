@@ -68,6 +68,13 @@ function T.a_nested_build_is_not_a_module_of_the_outer_build()
   vim.fn.delete(dir, 'rf')
 end
 
+function T.modules_deeper_than_three_levels_are_not_found()
+  local dir = build { 'a/b/c', 'a/b/c2/d' }
+  h.eq({ dir .. '/a/b/c' }, project.modules(dir))
+  project.reset()
+  vim.fn.delete(dir, 'rf')
+end
+
 function T.current_module_searched_first()
   h.eq({ h.path 'web', h.path 'core' }, project.search_order(h.app, h.path 'web/grails-app/views/book/list.gsp'))
 end

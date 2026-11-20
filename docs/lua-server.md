@@ -20,5 +20,6 @@ Lookups search every module of a multi-module build, the current one first, beca
 These are the Lua server's; grails-language-server has its own list in [its docs](https://github.com/vdassios/grails-language-server/blob/main/docs/how-it-works.md#known-limits).
 
 - **No type inference.** The Lua server works on syntax and naming conventions. Members of an instance (`book.save()`, `book.author`), dynamic finders, and Grails methods such as `render` and `params` are neither completed nor resolved.
+- **Modules at most three levels deep.** A module whose `grails-app/` is more than three directories below the root (`a/b/c/d/grails-app/`) is not found, so its files are not lookup targets.
 - **Workspace source only.** Views, templates, taglibs and members that come from Grails plugins (jars on the classpath) are unknown.
 - **tree-sitter-groovy parse errors.** The `groovy` parser fails on parts of many real Grails files. It mostly recovers locally, but a file can become a single error node. When the cursor is inside one, the server falls back to reading `call(key: 'value')` or `call key: 'value'` from the cursor line.
