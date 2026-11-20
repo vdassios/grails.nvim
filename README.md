@@ -45,7 +45,7 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 },
 ```
 
-`vim.lsp.enable { 'grails', 'grails_ls' }` turns on both language servers that come with the plugin; you need no other LSP setup. To use only one, enable only that name. Before you use `grails_ls` for the first time, run `:GrailsInstallServer` to download it.
+`vim.lsp.enable { 'grails', 'grails_ls' }` turns on both language servers that come with the plugin; you need no other LSP setup. To use only one, enable only that name. Before you use `grails_ls` for the first time, run `:GrailsInstallServer` to download it, then `:GrailsTrust` once in each Grails project you want it to run in (see [Trust](#configuration)).
 
 nvim-treesitter's `main` branch does not start highlighting by itself. If your config does not already do this, start it for GSP:
 
@@ -62,10 +62,10 @@ vim.api.nvim_create_autocmd('FileType', {
 
 grails.nvim comes with two language servers. They do different jobs, and they work best together.
 
-- **`grails_ls`** is [grails-language-server](https://github.com/vdassios/grails-language-server), the full server. It compiles your code with the project's own Groovy and Grails, so it knows types, GORM and the methods Grails adds: errors, completion, hover, go to definition. The cost: it needs the project's JDK and a download, and it runs the project's Gradle build, so it takes a few seconds to get ready (longer the first time, while Gradle resolves the project). Enable it only for projects you trust.
+- **`grails_ls`** is [grails-language-server](https://github.com/vdassios/grails-language-server), the full server. It compiles your code with the project's own Groovy and Grails, so it knows types, GORM and the methods Grails adds: errors, completion, hover, go to definition. The cost: it needs the project's JDK and a download, and it runs the project's Gradle build, so it takes a few seconds to get ready (longer the first time, while Gradle resolves the project). Because that runs project code, it starts only in projects you have trusted with `:GrailsTrust`.
 - **`grails`** is a small server written in Lua that runs inside Neovim. It does one thing: go to definition for the names Grails looks up by convention, such as `render(view: 'show')`, `<g:render template="row"/>`, layouts, assets, and controller and action names. It works the moment a file opens, needs no JDK or download, and never runs project code.
 
-With both enabled, `grails` answers go to definition until `grails_ls` is ready, and wherever `grails_ls` cannot run: without a suitable JDK, when the Gradle build fails, or when you have not enabled it. Once `grails_ls` is ready in a buffer, `grails` stops answering there, so go to definition never gives two results. `grails` attaches only to Groovy and GSP files inside a Grails project, `grails_ls` to those inside a Gradle build.
+With both enabled, `grails` answers go to definition until `grails_ls` is ready, and wherever `grails_ls` cannot run: without a suitable JDK, when the Gradle build fails, or when you have not enabled it. Once `grails_ls` is ready in a buffer, `grails` stops answering there, so go to definition never gives two results. `grails` attaches only to Groovy and GSP files inside a Grails project, `grails_ls` only to Groovy and GSP source files of a Grails build you trust (never to `build.gradle`, `settings.gradle` or a `Jenkinsfile`).
 
 If you also use [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig) and it has a `grails_ls` config, the two don't clash: grails.nvim's settings are applied on top of nvim-lspconfig's, and your own `vim.lsp.config('grails_ls', { ... })` is applied on top of both.
 
@@ -78,6 +78,8 @@ If you also use [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig) and i
 | `:GrailsInstallServer` | `<localleader>GI` | Download the jar of the newest grails-language-server release, pre-releases included, to `stdpath('data')/grails.nvim/`. Does nothing when that release is installed; `:GrailsInstallServer!` downloads it again. A running client keeps the old jar until it restarts. |
 | `:GrailsReloadProject` | `<localleader>Gr` | `grails_ls` resolves the Gradle project again, ignoring its cache. Run it after a dependency change. |
 | `:GrailsDownloadSources` | `<localleader>Gs` | `grails_ls` fetches the sources jars the project's libraries lack, with the project's Gradle, so definition and hover reach library code. Reports how many libraries have sources now. |
+| `:GrailsTrust` | none | Trust the current buffer's Grails project, so `grails_ls` may run its Gradle build, and start `grails_ls` for that project's open buffers. Remembered across sessions. |
+| `:GrailsUntrust` | none | Stop trusting the current buffer's Grails project and stop its `grails_ls`. |
 
 ### Keymaps
 
@@ -97,9 +99,9 @@ vim.g.grails_default_mappings = false
 
 ## Configuration
 
-`after/lsp/grails_ls.lua` starts the server jar on `gsp` and `groovy` buffers of a Gradle build: the root is the nearest directory with `settings.gradle`, `settings.gradle.kts` or `gradlew`. It does not start, and says why once, while the jar or `java` is missing.
+`after/lsp/grails_ls.lua` starts the server jar on `.groovy` and `.gsp` source files of a Grails build: the root is the nearest directory with `settings.gradle`, `settings.gradle.kts` or `gradlew`, and it must have a module with `grails-app/`. It never starts for `*.gradle` files or a `Jenkinsfile`, nor for a Gradle build without `grails-app/` (such as `buildSrc`). It does not start, and says why once, while the root is not trusted or the jar or `java` is missing.
 
-**Trust.** The server runs the project's Gradle build scripts and its AST transformations, so it executes project code. The config sends `initializationOptions.trusted = true`: enable `grails_ls` only for projects you trust.
+**Trust.** The server runs the project's Gradle build scripts (and its Gradle wrapper) and its AST transformations, so it executes project code. `grails_ls` therefore starts only in a root you have trusted: opening a file of an untrusted Grails project shows one notice naming `:GrailsTrust` and starts no JVM, while the Lua server `grails` keeps working. `:GrailsTrust` adds the project's root to an allowlist in `stdpath('state')/grails/trusted.json` (stored as real paths, so a symlink to a trusted root is trusted too); `:GrailsUntrust` removes it. The client sends `initializationOptions.trusted` from that allowlist, whichever way the client was started.
 
 **JDK.** The server must run on the project's JDK (the one its Gradle build uses): it compiles with the project's Groovy, which reads the JDK's class files with its bundled ASM, so Groovy 2.5 (Grails 4) needs JDK 15 or older. The server's docs have [the table](https://github.com/vdassios/grails-language-server/blob/main/docs/editors.md#install). `grails_ls` runs `$JAVA_HOME/bin/java`, else `java` from `PATH`; start Neovim with the project's `JAVA_HOME` (SDKMAN's `sdkman_auto_env` sets it from `.sdkmanrc` on `cd`), or set the path:
 

@@ -41,12 +41,36 @@ function M.cmd()
   return { M.java(), '-jar', M.jar() }
 end
 
---- `root_dir` of the client: the Gradle root, and only when the jar and `java` exist.
+--- The Gradle root of `bufnr` when it is a Grails build: the nearest directory with `settings.gradle(.kts)` or
+--- `gradlew` that has a module with `grails-app/`. Nil otherwise (no Gradle build, `buildSrc`, a plain Gradle build).
+--- @param bufnr integer
+--- @return string?
+function M.project_root(bufnr)
+  local root = vim.fs.root(bufnr, { 'settings.gradle', 'settings.gradle.kts', 'gradlew' })
+  if root and #require('grails.project').modules(root) > 0 then
+    return root
+  end
+end
+
+--- Source files the server serves. Not `*.gradle` or `Jenkinsfile` (filetype `groovy` too): for those the server
+--- can do nothing but run Gradle.
+local SOURCE = { groovy = true, gsp = true }
+
+--- `root_dir` of the client: the Grails root of a Groovy or GSP source file, once the root is trusted
+--- (`:GrailsTrust`) and the jar and `java` exist. Each missing condition is notified once.
 --- @param bufnr integer
 --- @param on_dir fun(root: string)
 function M.root_dir(bufnr, on_dir)
-  local root = vim.fs.root(bufnr, { 'settings.gradle', 'settings.gradle.kts', 'gradlew' })
+  if not SOURCE[vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ':e')] then
+    return
+  end
+  local root = M.project_root(bufnr)
   if not root then
+    return
+  end
+  if not require('grails.trust').is_trusted(root) then
+    local text = 'grails_ls: not started for %s, which is not trusted: the server runs its Gradle build. Run :GrailsTrust to trust it.'
+    vim.notify_once(text:format(root), vim.log.levels.INFO)
     return
   end
   if not vim.uv.fs_stat(M.jar()) then
@@ -58,6 +82,61 @@ function M.root_dir(bufnr, on_dir)
     return
   end
   on_dir(root)
+end
+
+--- `before_init` of the client: `initializationOptions.trusted` is whether the allowlist has the root the server
+--- uses (the first workspace folder, else `rootUri`), whatever started the client.
+--- @param params lsp.InitializeParams
+function M.before_init(params)
+  local folder = params.workspaceFolders and params.workspaceFolders ~= vim.NIL and params.workspaceFolders[1]
+  local uri = folder and folder.uri or params.rootUri
+  local trusted = type(uri) == 'string' and require('grails.trust').is_trusted(vim.uri_to_fname(uri))
+  local options = type(params.initializationOptions) == 'table' and params.initializationOptions or {}
+  params.initializationOptions = vim.tbl_extend('force', options, { trusted = trusted })
+end
+
+--- `:GrailsTrust`: trusts the current buffer's Grails root and starts the client for that root's open buffers
+--- (when `grails_ls` is enabled).
+function M.trust()
+  local root = M.project_root(vim.api.nvim_get_current_buf())
+  if not root then
+    vim.notify('GrailsTrust: this buffer is not in a Grails project', vim.log.levels.WARN)
+    return
+  end
+  local trust = require 'grails.trust'
+  trust.trust(root)
+  vim.notify(('GrailsTrust: trusted %s'):format(trust.real(root)))
+  if not vim.lsp.is_enabled(M.name) then
+    return
+  end
+  local config = vim.lsp.config[M.name]
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].buftype == '' and vim.list_contains(config.filetypes or {}, vim.bo[buf].filetype) then
+      local copy = vim.deepcopy(config)
+      copy.root_dir(buf, function(dir)
+        if trust.real(dir) == trust.real(root) then
+          copy.root_dir = dir
+          vim.lsp.start(copy, { bufnr = buf })
+        end
+      end)
+    end
+  end
+end
+
+--- `:GrailsUntrust`: removes the current buffer's Grails root from the allowlist and stops its clients.
+function M.untrust()
+  local root = M.project_root(vim.api.nvim_get_current_buf())
+  local trust = require 'grails.trust'
+  if not root or not trust.revoke(root) then
+    vim.notify('GrailsUntrust: this buffer is not in a trusted Grails project', vim.log.levels.WARN)
+    return
+  end
+  for _, client in ipairs(vim.lsp.get_clients { name = M.name }) do
+    if client.root_dir and trust.real(client.root_dir) == trust.real(root) then
+      client:stop()
+    end
+  end
+  vim.notify(('GrailsUntrust: %s is no longer trusted'):format(trust.real(root)))
 end
 
 --- Last `grails/status` state per client id.

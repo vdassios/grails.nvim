@@ -43,6 +43,14 @@ vim.api.nvim_create_user_command('GrailsDownloadSources', function()
   require('grails.ls').download_sources()
 end, { desc = "Grails: grails_ls fetches the libraries' missing sources jars" })
 
+vim.api.nvim_create_user_command('GrailsTrust', function()
+  require('grails.ls').trust()
+end, { desc = "Grails: trust this buffer's project, so grails_ls may run its Gradle build" })
+
+vim.api.nvim_create_user_command('GrailsUntrust', function()
+  require('grails.ls').untrust()
+end, { desc = "Grails: stop trusting this buffer's project and stop its grails_ls" })
+
 -- <Plug>(grails-*) mappings for the commands, and default keys for them in Grails buffers (lua/grails/keymaps.lua).
 require('grails.keymaps').define_plugs()
 vim.api.nvim_create_autocmd('FileType', {
