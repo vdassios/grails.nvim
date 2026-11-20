@@ -52,7 +52,7 @@ local function fake_rpc(dispatchers)
   end
   return {
     request = function(method, _, callback)
-      local result = method == 'initialize' and { capabilities = {} } or vim.NIL
+      local result = method == 'initialize' and { capabilities = {}, serverInfo = { version = require('grails.ls').min_server_version } } or vim.NIL
       vim.schedule(function()
         callback(nil, result)
       end)

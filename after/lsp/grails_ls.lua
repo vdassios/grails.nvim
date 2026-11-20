@@ -13,6 +13,8 @@ return {
   filetypes = { 'groovy', 'gsp' },
   root_dir = ls.root_dir,
   before_init = ls.before_init,
+  -- Warns once when the server is older than this plugin needs.
+  on_init = ls.on_init,
   handlers = {
     ['grails/status'] = ls.on_status,
   },

@@ -512,4 +512,22 @@ function M.install(force, tag, done)
   end)
 end
 
+--- The oldest server this client is made for: the first that reports `serverInfo.version`.
+M.min_server_version = '0.1.3-m6'
+
+--- `on_init` of the client: warns once when the server is older than `min_server_version`. A server that reports no
+--- version predates the field, so it is older too; a version that is not semver is no reason to warn.
+--- @param result lsp.InitializeResult
+function M.on_init(_, result)
+  local info = type(result) == 'table' and result.serverInfo
+  local version = type(info) == 'table' and type(info.version) == 'string' and info.version or nil
+  local parsed = version and vim.version.parse(version)
+  if version and (not parsed or not vim.version.lt(parsed, M.min_server_version)) then
+    return
+  end
+  local update = settings().jar and 'Update the jar at vim.g.grails_ls.jar' or 'Run :GrailsInstallServer to update it'
+  local what = version and ('is %s'):format(version) or 'reports no version'
+  warn('the server %s, older than the %s this grails.nvim needs, so some features may not work. %s.', what, M.min_server_version, update)
+end
+
 return M

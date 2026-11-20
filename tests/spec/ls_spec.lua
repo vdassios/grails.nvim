@@ -34,7 +34,8 @@ local function fake_server(answers)
     return {
       request = function(method, params, callback)
         server.requests[#server.requests + 1] = { method = method, params = params }
-        local result = method == 'initialize' and { capabilities = { definitionProvider = true } } or (answers or {})[method]
+        local initialized = { capabilities = { definitionProvider = true }, serverInfo = { name = 'grails-language-server', version = ls.min_server_version } }
+        local result = method == 'initialize' and initialized or (answers or {})[method]
         vim.schedule(function()
           callback(nil, result)
         end)
@@ -463,6 +464,26 @@ function T.concurrent_installs_do_not_share_a_temporary_file()
   local r = install(github { release('v0.2.0', sha256 'jar bytes') }, { runs = 2 })
   h.eq({ true, true }, r.results, r.msgs)
   h.eq({ ls.asset, 'version' }, files(r.dir))
+end
+
+function T.an_older_server_is_warned_about_once()
+  local function init(version)
+    return with(nil, nil, function()
+      ls.on_init({}, { capabilities = {}, serverInfo = { name = 'grails-language-server', version = version } })
+    end)
+  end
+  h.eq({}, init(ls.min_server_version))
+  h.eq({}, init '99.0.0')
+  h.eq({}, init 'not a version', 'a version it cannot read is no reason to warn')
+  local notes = init '0.0.1'
+  h.eq(1, #notes)
+  h.eq(vim.log.levels.WARN, notes[1].level)
+  assert(notes[1].msg:find '0%.0%.1' and notes[1].msg:find(ls.min_server_version, 1, true), notes[1].msg)
+  notes = with(nil, nil, function()
+    ls.on_init({}, { capabilities = {} })
+  end)
+  h.eq(1, #notes, 'a server that reports no version predates serverInfo.version')
+  h.eq('function', type(vim.lsp.config.grails_ls.on_init))
 end
 
 return T
