@@ -824,8 +824,8 @@ static const TSStateId ts_primary_state_ids[STATE_COUNT] = {
 };
 
 static const TSCharacterRange sym_attribute_name_character_set_1[] = {
-  {0, 0x08}, {0x0e, 0x1f}, {'!', '!'}, {'#', '#'}, {'%', '&'}, {'(', '.'}, {'0', '9'}, {';', ';'},
-  {'?', '['}, {']', 0x10ffff},
+  {0, 0x08}, {0x0e, 0x1f}, {'!', '!'}, {'#', '#'}, {'%', '&'}, {'(', '.'}, {'0', ';'}, {'?', '['},
+  {']', 0x10ffff},
 };
 
 static bool ts_lex(TSLexer *lexer, TSStateId state) {
@@ -1104,7 +1104,7 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
       END_STATE();
     case 38:
       if (lookahead == '%') ADVANCE(145);
-      if ((!eof && set_contains(sym_attribute_name_character_set_1, 10, lookahead))) ADVANCE(146);
+      if ((!eof && set_contains(sym_attribute_name_character_set_1, 9, lookahead))) ADVANCE(146);
       END_STATE();
     case 39:
       if (lookahead == '%') ADVANCE(40);
@@ -1244,7 +1244,7 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
     case 65:
       if (lookahead == '/') ADVANCE(66);
       if (lookahead == '>') ADVANCE(139);
-      if ((!eof && set_contains(sym_attribute_name_character_set_1, 10, lookahead))) ADVANCE(146);
+      if ((!eof && set_contains(sym_attribute_name_character_set_1, 9, lookahead))) ADVANCE(146);
       END_STATE();
     case 66:
       if (lookahead == '>') ADVANCE(140);
@@ -1267,7 +1267,7 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
       END_STATE();
     case 70:
       if (lookahead == '}') ADVANCE(122);
-      if ((!eof && set_contains(sym_attribute_name_character_set_1, 10, lookahead))) ADVANCE(146);
+      if ((!eof && set_contains(sym_attribute_name_character_set_1, 9, lookahead))) ADVANCE(146);
       END_STATE();
     case 71:
       if (lookahead == '}') ADVANCE(1);
@@ -1527,7 +1527,7 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
       END_STATE();
     case 122:
       ACCEPT_TOKEN(anon_sym_RBRACE);
-      if ((!eof && set_contains(sym_attribute_name_character_set_1, 10, lookahead))) ADVANCE(146);
+      if ((!eof && set_contains(sym_attribute_name_character_set_1, 9, lookahead))) ADVANCE(146);
       END_STATE();
     case 123:
       ACCEPT_TOKEN(anon_sym_LT_PERCENT);
@@ -1627,11 +1627,11 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
     case 145:
       ACCEPT_TOKEN(sym_attribute_name);
       if (lookahead == '>') ADVANCE(125);
-      if ((!eof && set_contains(sym_attribute_name_character_set_1, 10, lookahead))) ADVANCE(146);
+      if ((!eof && set_contains(sym_attribute_name_character_set_1, 9, lookahead))) ADVANCE(146);
       END_STATE();
     case 146:
       ACCEPT_TOKEN(sym_attribute_name);
-      if ((!eof && set_contains(sym_attribute_name_character_set_1, 10, lookahead))) ADVANCE(146);
+      if ((!eof && set_contains(sym_attribute_name_character_set_1, 9, lookahead))) ADVANCE(146);
       END_STATE();
     case 147:
       ACCEPT_TOKEN(anon_sym_DQUOTE);

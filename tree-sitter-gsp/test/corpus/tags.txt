@@ -284,3 +284,26 @@ Quotes and brackets inside a map value
       (attribute_name)
       (attribute_value
         (groovy_value)))))
+
+================================================================================
+Colon in attribute names
+================================================================================
+<g:link xml:lang="en" v-on:click="go()">x</g:link>
+--------------------------------------------------------------------------------
+
+(document
+  (gsp_tag_open
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text)))
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text))))
+  (content)
+  (gsp_tag_close
+    (namespace)
+    (tag_name)))

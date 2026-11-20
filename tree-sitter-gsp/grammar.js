@@ -174,7 +174,8 @@ export default grammar({
     // lexer's longest match tells it apart from the whitespace between attributes.
     attribute: $ => seq(field('name', $.attribute_name), optional(seq(alias(EQUALS, '='), field('value', $.attribute_value)))),
 
-    attribute_name: _ => /[^\s'"=:$<>\/\\]+/,
+    // `:` is allowed: `xml:lang`, `v-on:click`.
+    attribute_name: _ => /[^\s'"=$<>\/\\]+/,
 
     attribute_value: $ =>
       choice(
