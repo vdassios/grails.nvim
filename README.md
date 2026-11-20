@@ -15,7 +15,7 @@ Grails support for Neovim: a tree-sitter grammar for GSP (Groovy Server Pages), 
 ## Requirements
 
 - Neovim 0.11.3 or later.
-- A Grails 3 or later project: Gradle layout, with `grails-app/` in each module.
+- A Grails project with the Gradle layout, `grails-app/` in each module: Grails 3 or later for the Lua server, Grails 4 or later for `grails_ls` (it reports `failed` on Grails 3's Groovy 2.4).
 - The `groovy` and `html` tree-sitter parsers. The server reads Groovy files with the `groovy` parser, and GSP pages inject `html` and `groovy`.
 - To build the `gsp` parser: [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter) (`main` branch), or the `tree-sitter` CLI and a C compiler ([without nvim-treesitter](docs/grammar.md#without-nvim-treesitter)).
 - For `grails_ls`: `curl` (for `:GrailsInstallServer`) and the project's JDK, Java 11 or later (see "Configuration").
