@@ -28,6 +28,34 @@ function T.missing_target_is_empty()
   h.eq({}, res.result)
 end
 
+function T.no_document_text_is_sent()
+  local buf = h.edit 'web/grails-app/views/book/show.gsp'
+  local sent = {}
+  local id = assert(vim.lsp.start({
+    name = 'grails-sync',
+    cmd = function(dispatchers)
+      local rpc = require('grails.server').start(dispatchers)
+      local notify = rpc.notify
+      rpc.notify = function(method, params)
+        sent[#sent + 1] = method
+        return notify(method, params)
+      end
+      return rpc
+    end,
+    root_dir = h.app,
+  }, { bufnr = buf }))
+  local client = assert(vim.lsp.get_client_by_id(id))
+  vim.wait(2000, function()
+    return client.initialized
+  end)
+  vim.api.nvim_buf_set_lines(buf, 0, 0, false, { '<%-- edited --%>' })
+  vim.wait(200)
+  client:stop(true)
+  vim.cmd.edit { bang = true }
+  -- The server reads buffers itself (util.read): copying the text on each keystroke would be for nothing.
+  h.eq({ 'initialized' }, sent)
+end
+
 function T.utf16_client_gets_utf16_columns()
   local buf = h.edit 'web/grails-app/views/book/show.gsp'
   local id = vim.lsp.start({

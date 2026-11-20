@@ -15,7 +15,7 @@ function requests.initialize(state, params)
   return {
     capabilities = {
       positionEncoding = state.encoding,
-      textDocumentSync = { openClose = true, change = 1, save = true },
+      -- No textDocumentSync: a request reads the buffer itself (util.read), so Neovim sends no document text.
       definitionProvider = true,
     },
     serverInfo = { name = 'grails.nvim' },
