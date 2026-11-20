@@ -21,7 +21,8 @@ The `groovy` and `html` parsers are needed as well.
 
 ## Known limits
 
-- **Nesting limits.** `${ }` balances braces eight levels deep, and `[...]` attribute values balance brackets four levels deep. Deeper code ends the construct early.
+- **Strings inside `${ }`.** The grammar skips a Groovy string inside `${ }` only when it is on one line, so a `}` in it does not end the expression. A string that spans lines (`${ "a` with `b" }` on the next line) is a parse error, and so is a `'` or `"` inside a slashy string (`${ x ==~ /it's/ }`). A `}` inside a slashy string ends the expression early.
+- **Nesting limits.** `${ }` balances braces eight levels deep; a ninth level is a parse error. A `[...]` attribute value balances brackets four levels deep; at five levels the whole value is plain text, without the Groovy injection.
 - **`}` before `}%` or `}!`.** In `%{ x.each { y }}%` the closer takes the whole run of `}`, so the Groovy injection does not see the closure's last `}`.
 - **No `indents.scm` for GSP.** Indentation comes from the html injection.
 

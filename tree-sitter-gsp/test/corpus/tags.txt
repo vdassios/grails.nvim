@@ -307,3 +307,18 @@ Colon in attribute names
   (gsp_tag_close
     (namespace)
     (tag_name)))
+
+================================================================================
+Map nested five deep is text
+================================================================================
+<g:render model="[[[[[1]]]]]"/>
+--------------------------------------------------------------------------------
+
+(document
+  (gsp_tag_self_closing
+    (namespace)
+    (tag_name)
+    (attribute
+      (attribute_name)
+      (attribute_value
+        (text)))))
