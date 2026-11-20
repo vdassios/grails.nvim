@@ -79,4 +79,38 @@ function T.k_mapping_is_undone_with_the_filetype()
   vim.bo[buf].filetype = 'gsp'
 end
 
+--- Edits `rel` in a new buffer, so FileType runs again (another spec may have it loaded).
+local function fresh(rel)
+  local old = vim.fn.bufnr(h.path(rel))
+  if old ~= -1 then
+    vim.cmd.bwipeout { old, bang = true }
+  end
+  return h.edit(rel)
+end
+
+function T.k_leaves_a_mapping_of_the_user_alone()
+  vim.keymap.set('n', 'K', '<Cmd>echo<CR>')
+  local ok, err = pcall(function()
+    local buf = fresh 'web/grails-app/views/book/list.gsp'
+    h.eq(0, vim.fn.maparg('K', 'n', false, true).buffer, 'the global K is kept')
+    -- A buffer-local K of the user survives the filetype's undo, which removes only a K the ftplugin set.
+    vim.keymap.set('n', 'K', '<Cmd>echo "mine"<CR>', { buffer = buf })
+    vim.bo[buf].filetype = 'text'
+    h.eq('<Cmd>echo "mine"<CR>', vim.fn.maparg('K', 'n', false, true).rhs)
+    vim.keymap.del('n', 'K', { buffer = buf })
+  end)
+  vim.keymap.del('n', 'K')
+  assert(ok, err)
+end
+
+function T.k_is_not_mapped_when_default_mappings_are_off()
+  vim.g.grails_default_mappings = false
+  local ok, err = pcall(function()
+    fresh 'web/grails-app/views/book/list.gsp'
+    h.eq(vim.empty_dict(), vim.fn.maparg('K', 'n', false, true))
+  end)
+  vim.g.grails_default_mappings = nil
+  assert(ok, err)
+end
+
 return T

@@ -83,7 +83,7 @@ If you also use [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig) and i
 
 ### Keymaps
 
-The default keys are set only in Groovy and GSP buffers inside a Grails project, as buffer-local mappings. They start with `<localleader>`, which is `\` unless you set `vim.g.maplocalleader`; Neovim maps nothing under it. A default is not set when its key is already mapped (by you or by another plugin), so grails.nvim never replaces a mapping.
+The default keys are set only in Groovy and GSP buffers inside a Grails project, as buffer-local mappings. They start with `<localleader>`, which is `\` unless you set `vim.g.maplocalleader`; Neovim maps nothing under it. A default is not set when its key is already mapped (by you or by another plugin), so grails.nvim never replaces a mapping. The same holds for `K` in GSP buffers, which grails.nvim maps to LSP hover so that it never opens `:Man` ([more](docs/grammar.md#gsp-language)).
 
 Each command also has a `<Plug>` mapping: `<Plug>(grails-alternate)`, `<Plug>(grails-reindex)`, `<Plug>(grails-install-server)`, `<Plug>(grails-reload-project)` and `<Plug>(grails-download-sources)`. Map your own key to one, and grails.nvim skips the default key for that command:
 
@@ -91,7 +91,7 @@ Each command also has a `<Plug>` mapping: `<Plug>(grails-alternate)`, `<Plug>(gr
 vim.keymap.set('n', '<leader>a', '<Plug>(grails-alternate)', { desc = 'Grails: alternate file' })
 ```
 
-To turn off all default keys, set this before you open a file:
+To turn off all default keys, `K` included, set this before you open a file:
 
 ```lua
 vim.g.grails_default_mappings = false
