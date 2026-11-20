@@ -236,10 +236,31 @@ function T.commands_send_the_server_requests()
     end, notes)
   )
   stop_all()
-  notes = with(nil, nil, function()
-    vim.cmd 'GrailsReloadProject'
+end
+
+function T.commands_without_a_client_only_warn()
+  h.edit 'core/grails-app/controllers/bookshop/BookController.groovy'
+  stop_all()
+  -- Deliberate change: "reloading" and "downloading" used to be notified before the client check.
+  for _, command in ipairs { 'GrailsReloadProject', 'GrailsDownloadSources' } do
+    local notes = with(nil, nil, function()
+      vim.cmd(command)
+    end)
+    h.eq({ { msg = 'grails_ls is not attached to this buffer', level = vim.log.levels.WARN } }, notes, command)
+  end
+end
+
+function T.download_sources_survives_a_null_result()
+  local buf = h.edit 'core/grails-app/controllers/bookshop/BookController.groovy'
+  start(fake_server { ['grails/downloadSources'] = vim.NIL }, buf)
+  local notes = with(nil, nil, function()
+    vim.cmd 'GrailsDownloadSources'
+    vim.wait(100)
   end)
-  h.eq(vim.log.levels.WARN, notes[2].level, 'no client: warned')
+  stop_all()
+  h.eq(2, #notes)
+  h.eq('grails_ls: grails/downloadSources returned no report', notes[2].msg)
+  h.eq(vim.log.levels.WARN, notes[2].level)
 end
 
 function T.pick_release_prefers_the_newest_stable_release_with_the_jar()

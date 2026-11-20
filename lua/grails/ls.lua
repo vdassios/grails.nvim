@@ -323,16 +323,19 @@ function M.ready(bufnr)
   return false
 end
 
---- Sends a `grails/*` request to the current buffer's `grails_ls` client; `done(result)` on success.
+--- Sends a `grails/*` request to the current buffer's `grails_ls` client, notifying `doing` once it is sent;
+--- `done(result)` on success. Without a client it only warns.
 --- @param method string
+--- @param doing string
 --- @param done fun(result: any)
-function M.request(method, done)
+function M.request(method, doing, done)
   local bufnr = vim.api.nvim_get_current_buf()
   local client = vim.lsp.get_clients({ bufnr = bufnr, name = M.name })[1]
   if not client then
     vim.notify('grails_ls is not attached to this buffer', vim.log.levels.WARN)
     return
   end
+  vim.notify('grails_ls: ' .. doing)
   client:request(method, nil, function(err, result)
     if err then
       vim.notify(('grails_ls: %s failed: %s'):format(method, err.message), vim.log.levels.ERROR)
@@ -343,15 +346,17 @@ function M.request(method, done)
 end
 
 function M.reload_project()
-  vim.notify 'grails_ls: reloading the project'
-  M.request('grails/reloadProject', function()
+  M.request('grails/reloadProject', 'reloading the project', function()
     vim.notify 'grails_ls: project reloaded'
   end)
 end
 
 function M.download_sources()
-  vim.notify 'grails_ls: downloading sources jars'
-  M.request('grails/downloadSources', function(r)
+  M.request('grails/downloadSources', 'downloading sources jars', function(r)
+    if type(r) ~= 'table' then
+      vim.notify('grails_ls: grails/downloadSources returned no report', vim.log.levels.WARN)
+      return
+    end
     local text = ('grails_ls: sources jars: %d available, %d published by no library, %d failed'):format(r.available, r.unavailable, r.failed)
     vim.notify(r.message and text .. '\n' .. r.message or text, (r.failed > 0 or r.message) and vim.log.levels.WARN or vim.log.levels.INFO)
   end)
