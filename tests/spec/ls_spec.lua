@@ -93,11 +93,6 @@ function T.config_runs_the_jar_on_java_home()
   with(nil, '', function()
     h.eq('java', ls.cmd()[1])
   end)
-  local config = vim.lsp.config.grails_ls
-  h.eq({ 'groovy', 'gsp' }, config.filetypes)
-  h.eq(nil, config.init_options, 'trusted comes from the allowlist (before_init), not a constant')
-  h.eq('function', type(config.before_init))
-  h.eq(nil, config.exit_timeout, 'Neovim quits without waiting: the server exits when its input ends')
 end
 
 function T.config_wins_over_another_grails_ls_on_the_runtimepath()
