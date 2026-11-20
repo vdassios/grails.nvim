@@ -28,8 +28,8 @@ vim.api.nvim_create_user_command('GrailsAlternate', function()
 end, { desc = 'Grails: go to the alternate file (action <-> view, domain <-> controller <-> service)' })
 
 vim.api.nvim_create_user_command('GrailsReindex', function()
-  require('grails.project').reset()
-end, { desc = 'Grails: drop the cached project index' })
+  require('grails.ls').reindex()
+end, { desc = "Grails: drop the Lua server's index and have grails_ls read the source files again" })
 
 vim.api.nvim_create_user_command('GrailsInstallServer', function(opts)
   require('grails.ls').install(opts.bang, opts.args)

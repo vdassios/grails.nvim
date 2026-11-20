@@ -358,6 +358,19 @@ function M.request(method, doing, done)
   end, bufnr)
 end
 
+--- `:GrailsReindex`: drops the Lua server's index and asks the current buffer's `grails_ls` to read the source
+--- roots again (`grails/reindex`, which never runs Gradle). Without a client it says that only the Lua index went.
+function M.reindex()
+  require('grails.project').reset()
+  if not vim.lsp.get_clients({ bufnr = 0, name = M.name })[1] then
+    vim.notify "grails: dropped the Lua server's index; grails_ls is not attached to this buffer"
+    return
+  end
+  M.request('grails/reindex', 'rescanning the source files', function()
+    vim.notify 'grails_ls: source files rescanned'
+  end)
+end
+
 function M.reload_project()
   M.request('grails/reloadProject', 'reloading the project', function()
     vim.notify 'grails_ls: project reloaded'

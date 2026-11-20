@@ -13,7 +13,7 @@ local M = {}
 --- @type grails.Keymap[]
 M.defaults = {
   { lhs = '<localleader>Ga', plug = '<Plug>(grails-alternate)', command = 'GrailsAlternate', desc = 'Grails: alternate file' },
-  { lhs = '<localleader>Gi', plug = '<Plug>(grails-reindex)', command = 'GrailsReindex', desc = "Grails: drop the Lua server's index" },
+  { lhs = '<localleader>Gi', plug = '<Plug>(grails-reindex)', command = 'GrailsReindex', desc = 'Grails: read the source files again' },
   { lhs = '<localleader>GI', plug = '<Plug>(grails-install-server)', command = 'GrailsInstallServer', desc = 'Grails: install grails-language-server' },
   { lhs = '<localleader>Gr', plug = '<Plug>(grails-reload-project)', command = 'GrailsReloadProject', desc = 'Grails: reload the Gradle project' },
   { lhs = '<localleader>Gs', plug = '<Plug>(grails-download-sources)', command = 'GrailsDownloadSources', desc = 'Grails: download sources jars' },
