@@ -187,6 +187,17 @@ function T.status_is_lsp_progress_and_a_failure_is_notified()
   stop_all()
 end
 
+function T.a_stopped_client_leaves_no_status()
+  local buf = h.edit 'core/grails-app/controllers/bookshop/BookController.groovy'
+  local server = fake_server()
+  local client = start(server, buf)
+  server.status 'ready'
+  vim.wait(50)
+  h.eq('ready', ls.states[client.id])
+  stop_all()
+  h.eq(nil, ls.states[client.id])
+end
+
 function T.lua_server_leaves_definition_to_a_ready_grails_ls()
   local buf = h.edit 'web/grails-app/views/book/list.gsp'
   local lua_client = h.client(buf)

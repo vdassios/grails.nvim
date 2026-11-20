@@ -326,6 +326,12 @@ function M.on_status(_, params, ctx)
   end
 end
 
+--- `on_exit` of a `grails_ls` client: forgets its state, which would otherwise outlive it.
+--- @param client_id integer
+function M.on_exit(_, _, client_id)
+  M.states[client_id] = nil
+end
+
 --- Whether a `grails_ls` client attached to `bufnr` has the project ready.
 function M.ready(bufnr)
   for _, client in ipairs(vim.lsp.get_clients { bufnr = bufnr, name = M.name }) do

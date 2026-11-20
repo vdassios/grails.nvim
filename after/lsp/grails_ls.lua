@@ -15,6 +15,7 @@ return {
   before_init = ls.before_init,
   -- Warns once when the server is older than this plugin needs.
   on_init = ls.on_init,
+  on_exit = ls.on_exit,
   handlers = {
     ['grails/status'] = ls.on_status,
   },
