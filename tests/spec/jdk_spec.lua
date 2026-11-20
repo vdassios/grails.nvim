@@ -105,6 +105,15 @@ local function with(env, fn)
   return notes
 end
 
+--- Runs `fn` with `cfg` merged into the user's grails_ls config, then puts the user's config back.
+local function with_config(cfg, fn)
+  local saved = vim.lsp.config._configs.grails_ls
+  vim.lsp.config('grails_ls', cfg)
+  local ok, err = pcall(fn)
+  vim.lsp.config.grails_ls = saved or {}
+  assert(ok, err)
+end
+
 local function edit(path)
   vim.cmd.edit(vim.fn.fnameescape(path))
   return vim.api.nvim_get_current_buf()
@@ -289,6 +298,40 @@ function T.java_not_executable_is_reported_and_not_started()
   h.eq(0, #spawned)
   h.eq(1, #notes, messages(notes))
   assert(notes[1].msg:find('not executable', 1, true) and notes[1].msg:find(missing, 1, true), notes[1].msg)
+end
+
+function T.overridden_cmd_is_not_gated_on_the_jar_or_java()
+  local root = project()
+  trust.trust(root)
+  local started, notes = 0, nil
+  local function cmd(dispatchers)
+    started = started + 1
+    return fake_rpc(dispatchers)
+  end
+  with_config({ cmd = cmd }, function()
+    notes = with({ settings = { java = vim.fn.tempname(), jar = vim.fn.tempname() } }, function()
+      assert(client(edit(root .. '/app/src/main/groovy/demo/Util.groovy')), 'no client with an overridden cmd')
+    end)
+  end)
+  trust.revoke(root)
+  h.eq({}, notes)
+  h.eq(1, started)
+end
+
+function T.cmd_env_cwd_and_detached_reach_the_process()
+  local root = project()
+  trust.trust(root)
+  local java = jdk(vim.fn.tempname(), 'openjdk version "17.0.19"')
+  local spawned
+  with_config({ cmd_env = { GRAILS_OPTS = '-Xmx2g' }, cmd_cwd = root, detached = false }, function()
+    with({ settings = { java = java, jar = jar() } }, function(s)
+      spawned = s
+      assert(client(edit(root .. '/app/src/main/groovy/demo/Util.groovy')), 'no client')
+    end)
+  end)
+  trust.revoke(root)
+  h.eq({ env = { GRAILS_OPTS = '-Xmx2g' }, cwd = root, detached = false }, spawned[1].extra)
+  h.eq(java, spawned[1].cmd[1])
 end
 
 return T

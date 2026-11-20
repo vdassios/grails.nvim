@@ -8,7 +8,7 @@ local ls = require 'grails.ls'
 ---@type vim.lsp.Config
 return {
   -- A function, so the jar and `java` are looked up at each start (`vim.g.grails_ls`, `:GrailsInstallServer`), for
-  -- the client's own root.
+  -- the client's own root. `root_dir` checks the jar and `java` only while `cmd` is this function.
   cmd = ls.rpc,
   filetypes = { 'groovy', 'gsp' },
   root_dir = ls.root_dir,

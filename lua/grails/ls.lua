@@ -123,11 +123,13 @@ function M.cmd(root)
   return { M.java(root), '-jar', M.jar() }
 end
 
---- `cmd` of the client: the server on the JDK of the client's root.
+--- `cmd` of the client: the server on the JDK of the client's root, with the config's `cmd_env`, `cmd_cwd` and
+--- `detached` (which Neovim applies itself only to a list `cmd`).
 --- @param dispatchers vim.lsp.rpc.Dispatchers
 --- @param config vim.lsp.ClientConfig
 function M.rpc(dispatchers, config)
-  return vim.lsp.rpc.start(M.cmd(config.root_dir), dispatchers)
+  local extra = { env = config.cmd_env, cwd = config.cmd_cwd, detached = config.detached }
+  return vim.lsp.rpc.start(M.cmd(config.root_dir), dispatchers, extra)
 end
 
 --- Binaries whose `java -version` passed (=> true), or are being checked (=> callbacks waiting for the result).
@@ -193,7 +195,8 @@ end
 local SOURCE = { groovy = true, gsp = true }
 
 --- `root_dir` of the client: the Grails root of a Groovy or GSP source file, once the root is trusted
---- (`:GrailsTrust`), the jar exists and the root's `java` runs Java 11 or later (checked asynchronously). Each missing condition is notified once.
+--- (`:GrailsTrust`) and, unless the user overrides `cmd`, the jar exists and the root's `java` runs Java 11 or later
+--- (checked asynchronously). Each missing condition is notified once.
 --- @param bufnr integer
 --- @param on_dir fun(root: string)
 function M.root_dir(bufnr, on_dir)
@@ -208,6 +211,10 @@ function M.root_dir(bufnr, on_dir)
     local text = 'grails_ls: not started for %s, which is not trusted: the server runs its Gradle build. Run :GrailsTrust to trust it.'
     vim.notify_once(text:format(root), vim.log.levels.INFO)
     return
+  end
+  if vim.lsp.config[M.name].cmd ~= M.rpc then
+    -- The user's own command: Neovim reports a list `cmd` whose program is not executable.
+    return on_dir(root)
   end
   if not vim.uv.fs_stat(M.jar()) then
     warn('no server jar at %s. Run :GrailsInstallServer, or set vim.g.grails_ls.jar.', M.jar())

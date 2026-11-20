@@ -120,7 +120,7 @@ vim.g.grails_ls = {
 }
 ```
 
-Both are read each time the server starts. To change anything else, such as JVM flags, override the whole command: `vim.lsp.config('grails_ls', { cmd = { 'java', '-Xmx2g', '-jar', require('grails.ls').jar() } })`.
+Both are read each time the server starts. To change anything else, such as JVM flags, override the whole command: `vim.lsp.config('grails_ls', { cmd = { 'java', '-Xmx2g', '-jar', require('grails.ls').jar() } })`. With your own `cmd`, the client checks neither the jar nor `java`. `cmd_env`, `cmd_cwd` and `detached` apply to the default command too.
 
 **Status.** The server reports `resolving`, `indexing`, `ready` and `failed`. The client turns them into LSP progress, so `vim.lsp.status()` and progress plugins show them, and notifies a failure with its reason.
 
