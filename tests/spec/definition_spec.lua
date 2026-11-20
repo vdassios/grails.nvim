@@ -140,6 +140,22 @@ local function drop_project(dir)
   vim.fn.delete(dir, 'rf')
 end
 
+function T.files_deleted_or_moved_outside_neovim_are_followed()
+  local dir = scratch_project()
+  local ok, err = pcall(function()
+    vim.fn.writefile(CONTROLLER, dir .. '/grails-app/controllers/shop/BookController.groovy')
+    h.eq({ 'grails-app/controllers/shop/BookController.groovy:2' }, define_book(dir))
+    -- A checkout moves the controller to another package.
+    vim.fn.mkdir(dir .. '/grails-app/controllers/store', 'p')
+    vim.fn.rename(dir .. '/grails-app/controllers/shop/BookController.groovy', dir .. '/grails-app/controllers/store/BookController.groovy')
+    h.eq({ 'grails-app/controllers/store/BookController.groovy:2' }, define_book(dir), 'after the move')
+    vim.fn.delete(dir .. '/grails-app/controllers/store/BookController.groovy')
+    h.eq({}, define_book(dir), 'after the delete')
+  end)
+  drop_project(dir)
+  assert(ok, err)
+end
+
 function T.an_unreadable_target_gives_no_location()
   local dir = scratch_project()
   local path = dir .. '/grails-app/controllers/shop/BookController.groovy'

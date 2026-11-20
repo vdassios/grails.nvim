@@ -28,16 +28,6 @@ function T.missing_target_is_empty()
   h.eq({}, res.result)
 end
 
-function T.did_save_under_grails_app_drops_the_index()
-  local project = require 'grails.project'
-  local buf = h.edit 'web/grails-app/views/book/list.gsp'
-  local client = h.client(buf)
-  local before = project.modules(h.app)
-  client:notify('textDocument/didSave', { textDocument = { uri = vim.uri_from_bufnr(buf) } })
-  vim.wait(100)
-  assert(project.modules(h.app) ~= before, 'the index was not dropped')
-end
-
 function T.utf16_client_gets_utf16_columns()
   local buf = h.edit 'web/grails-app/views/book/show.gsp'
   local id = vim.lsp.start({

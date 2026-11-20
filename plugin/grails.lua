@@ -29,7 +29,7 @@ end, { desc = 'Grails: go to the alternate file (action <-> view, domain <-> con
 
 vim.api.nvim_create_user_command('GrailsReindex', function()
   require('grails.ls').reindex()
-end, { desc = "Grails: drop the Lua server's index and have grails_ls read the source files again" })
+end, { desc = 'Grails: grails_ls reads the source files again, without Gradle' })
 
 vim.api.nvim_create_user_command('GrailsInstallServer', function(opts)
   require('grails.ls').install(opts.bang, opts.args)

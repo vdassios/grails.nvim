@@ -241,8 +241,9 @@ end
 function T.commands_without_a_client_only_warn()
   h.edit 'core/grails-app/controllers/bookshop/BookController.groovy'
   stop_all()
-  -- Deliberate change: "reloading" and "downloading" used to be notified before the client check.
-  for _, command in ipairs { 'GrailsReloadProject', 'GrailsDownloadSources' } do
+  -- Deliberate change: "reloading" and "downloading" used to be notified before the client check, and
+  -- :GrailsReindex dropped the Lua server's index and said so (the Lua server keeps no index now).
+  for _, command in ipairs { 'GrailsReindex', 'GrailsReloadProject', 'GrailsDownloadSources' } do
     local notes = with(nil, nil, function()
       vim.cmd(command)
     end)
@@ -252,8 +253,6 @@ end
 
 function T.reindex_asks_grails_ls_to_rescan()
   local buf = h.edit 'core/grails-app/controllers/bookshop/BookController.groovy'
-  local project = require 'grails.project'
-  local before = project.modules(h.app)
   local server = fake_server { ['grails/reindex'] = vim.NIL }
   start(server, buf)
   local notes = with(nil, nil, function()
@@ -273,19 +272,6 @@ function T.reindex_asks_grails_ls_to_rescan()
       return n.msg
     end, notes)
   )
-  assert(before ~= project.modules(h.app), "the Lua server's index was not dropped")
-end
-
-function T.reindex_without_a_client_drops_the_lua_index_and_says_so()
-  h.edit 'core/grails-app/controllers/bookshop/BookController.groovy'
-  stop_all()
-  local project = require 'grails.project'
-  local before = project.modules(h.app)
-  local notes = with(nil, nil, function()
-    vim.cmd 'GrailsReindex'
-  end)
-  h.eq({ { msg = "grails: dropped the Lua server's index; grails_ls is not attached to this buffer", level = vim.log.levels.INFO } }, notes)
-  assert(before ~= project.modules(h.app), "the Lua server's index was not dropped")
 end
 
 function T.download_sources_survives_a_null_result()

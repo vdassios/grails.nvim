@@ -64,14 +64,12 @@ function T.a_nested_build_is_not_a_module_of_the_outer_build()
   h.eq({ 'OuterController' }, controllers(dir))
   h.eq({ dir .. '/demo/nested', dir .. '/demo/nested/core' }, project.modules(dir .. '/demo/nested'))
   h.eq({ 'InnerController' }, controllers(dir .. '/demo/nested'))
-  project.reset()
   vim.fn.delete(dir, 'rf')
 end
 
 function T.modules_deeper_than_three_levels_are_not_found()
   local dir = build { 'a/b/c', 'a/b/c2/d' }
   h.eq({ dir .. '/a/b/c' }, project.modules(dir))
-  project.reset()
   vim.fn.delete(dir, 'rf')
 end
 
@@ -93,12 +91,6 @@ function T.artefact_index()
   end
   table.sort(found)
   h.eq({ 'controller author', 'controller book', 'domain author', 'domain book', 'service book' }, found)
-end
-
-function T.reset_drops_the_cache()
-  project.modules(h.app)
-  project.reset(h.app)
-  h.eq({ h.path 'core', h.path 'web' }, project.modules(h.app))
 end
 
 function T.view_dir()

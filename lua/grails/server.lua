@@ -35,16 +35,6 @@ requests['textDocument/definition'] = function(state, params)
   return require('grails.features.definition').definition(params, state.encoding)
 end
 
---- @type table<string, fun(state: grails.State, params: any)>
-local notifications = {
-  ['textDocument/didSave'] = function(_, params)
-    local path = vim.uri_to_fname(params.textDocument.uri)
-    if path:find('/grails-app/', 1, true) then
-      require('grails.project').invalidate(path)
-    end
-  end,
-}
-
 --- @param dispatchers vim.lsp.rpc.Dispatchers
 --- @return vim.lsp.rpc.PublicClient
 function M.start(dispatchers)
@@ -85,14 +75,9 @@ function M.start(dispatchers)
       end)
       return true, id
     end,
-    notify = function(method, params)
+    notify = function(method)
       if method == 'exit' then
         close()
-      elseif notifications[method] then
-        local ok, err = xpcall(notifications[method], debug.traceback, state, params)
-        if not ok then
-          vim.notify('grails.nvim: ' .. err, vim.log.levels.ERROR)
-        end
       end
       return true
     end,

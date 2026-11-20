@@ -13,7 +13,7 @@
 | `controller` attribute of a GSP tag; `controller:` of `redirect`, `chain`, `forward`, `createLink`, `g.link` | The controller class |
 | `action` in the same places | The action in the named controller, or in the current one. In a view, that is the controller named after the view's directory. An action is a method that is not private, protected or static, or a property assigned a closure. |
 
-Lookups search every module of a multi-module build, the current one first, because views and controllers often live in different modules. A module is a directory with `grails-app/`, the root or up to three levels below it. A directory with its own `settings.gradle` or `settings.gradle.kts` is a separate build: its modules belong to it, not to the build around it. A target that does not exist, or a value computed with `${}` or a GString, gives no result.
+Lookups search every module of a multi-module build, the current one first, because views and controllers often live in different modules. A module is a directory with `grails-app/`, the root or up to three levels below it. A directory with its own `settings.gradle` or `settings.gradle.kts` is a separate build: its modules belong to it, not to the build around it. A target that does not exist, or a value computed with `${}` or a GString, gives no result. The server keeps no index: each lookup reads the directories and files it needs, so files created, moved or deleted outside Neovim (a `git checkout`) are followed without a command, and an open buffer's unsaved text is used over the file on disk.
 
 ## Known limits
 

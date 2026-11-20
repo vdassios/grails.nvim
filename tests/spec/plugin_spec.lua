@@ -8,19 +8,6 @@ function T.gsp_commentstring()
   h.eq('<%-- %s --%>', vim.bo.commentstring)
 end
 
-function T.reindex_drops_the_cache()
-  local project = require 'grails.project'
-  local before = project.modules(h.app)
-  local notify = vim.notify
-  vim.notify = function() end
-  local ok, err = pcall(vim.cmd, 'GrailsReindex')
-  vim.notify = notify
-  assert(ok, err)
-  local after = project.modules(h.app)
-  h.eq(before, after)
-  assert(before ~= after, 'the module list was not rebuilt')
-end
-
 --- An in-process language server that answers hover.
 local function hover_server()
   return {

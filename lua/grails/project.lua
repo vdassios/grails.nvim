@@ -1,5 +1,5 @@
--- Workspace model: project root, modules and the artefact file index.
--- Built lazily from file names only, cached per root.
+-- Workspace model: project root, modules and the artefact files, from file names only. Read from disk on every
+-- call, so files created, moved or deleted outside Neovim are followed without a cache to drop.
 local M = {}
 
 local uv = vim.uv
@@ -68,46 +68,11 @@ end
 --- @field path string
 --- @field module string
 
---- @class grails.Index
---- @field modules? string[]
---- @field artefacts? grails.Artefact[]
-
---- @type table<string, grails.Index>
-local cache = {}
-
---- Drop the cached index of one root, or of every root.
---- @param root? string
-function M.reset(root)
-  if root then
-    cache[root] = nil
-  else
-    cache = {}
-  end
-end
-
---- Drop the index of the project holding `path`.
---- @param path string
-function M.invalidate(path)
-  local root = M.find_root(path)
-  if root then
-    M.reset(root)
-  end
-end
-
-local function index(root)
-  cache[root] = cache[root] or {}
-  return cache[root]
-end
-
 --- Module directories (each holds a `grails-app/`), up to three levels below the root. A directory with its own
 --- `settings.gradle(.kts)` is another build (`find_root`), so it and everything below it are left out.
 --- @param root string
 --- @return string[]
 function M.modules(root)
-  local idx = index(root)
-  if idx.modules then
-    return idx.modules
-  end
   local mods = {}
   local skip = function(dir)
     local name = vim.fs.basename(dir)
@@ -124,17 +89,16 @@ function M.modules(root)
     end
   end
   table.sort(mods)
-  idx.modules = mods
   return mods
 end
 
---- The module holding `path`, if any.
---- @param root string
+--- The module among `mods` holding `path`, if any.
+--- @param mods string[]
 --- @param path string
 --- @return string?
-function M.module_of(root, path)
+local function module_of(mods, path)
   local best
-  for _, mod in ipairs(M.modules(root)) do
+  for _, mod in ipairs(mods) do
     if vim.fs.relpath(mod, path) and (not best or #mod > #best) then
       best = mod
     end
@@ -148,9 +112,10 @@ end
 --- @param path? string
 --- @return string[]
 function M.search_order(root, path)
-  local current = path and M.module_of(root, path)
+  local mods = M.modules(root)
+  local current = path and module_of(mods, path)
   local order = { current }
-  for _, mod in ipairs(M.modules(root)) do
+  for _, mod in ipairs(mods) do
     if mod ~= current then
       order[#order + 1] = mod
     end
@@ -158,14 +123,14 @@ function M.search_order(root, path)
   return order
 end
 
-local function artefacts(root)
-  local idx = index(root)
-  if idx.artefacts then
-    return idx.artefacts
-  end
+--- Artefacts of `mod`, of one kind or of every kind, sorted by path.
+--- @param mod string
+--- @param only? string
+--- @return grails.Artefact[]
+local function artefacts_in(mod, only)
   local list = {}
-  for _, mod in ipairs(M.modules(root)) do
-    for _, kind in ipairs(M.kinds) do
+  for _, kind in ipairs(M.kinds) do
+    if not only or kind.kind == only then
       local dir = vim.fs.joinpath(mod, 'grails-app', kind.dir)
       if is_dir(dir) then
         for name, type in vim.fs.dir(dir, { depth = math.huge }) do
@@ -186,7 +151,6 @@ local function artefacts(root)
   table.sort(list, function(a, b)
     return a.path < b.path
   end)
-  idx.artefacts = list
   return list
 end
 
@@ -198,14 +162,8 @@ end
 function M.artefacts(root, filter, from)
   local found = {}
   for _, mod in ipairs(M.search_order(root, from)) do
-    for _, a in ipairs(artefacts(root)) do
-      if
-        a.module == mod
-        and (not filter.kind or a.kind == filter.kind)
-        and (not filter.name or a.name == filter.name)
-        and (not filter.class or a.class == filter.class)
-        and (not filter.path or a.path == filter.path)
-      then
+    for _, a in ipairs(artefacts_in(mod, filter.kind)) do
+      if (not filter.name or a.name == filter.name) and (not filter.class or a.class == filter.class) and (not filter.path or a.path == filter.path) then
         found[#found + 1] = a
       end
     end
