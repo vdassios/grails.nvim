@@ -7,14 +7,13 @@ local uv = vim.uv
 --- Directories never searched for modules.
 local SKIP = { build = true, node_modules = true, out = true, target = true, src = true, ['grails-app'] = true }
 
---- Artefact kinds found by file name: directory under `grails-app/` and class name suffix.
+--- Artefact kinds the lookups use (definition: controllers; :GrailsAlternate: all three), found by file name:
+--- directory under `grails-app/` and class name suffix.
 --- A domain class is any class under `domain/`.
 M.kinds = {
   { kind = 'domain', dir = 'domain', suffix = '' },
   { kind = 'controller', dir = 'controllers', suffix = 'Controller' },
   { kind = 'service', dir = 'services', suffix = 'Service' },
-  { kind = 'taglib', dir = 'taglib', suffix = 'TagLib' },
-  { kind = 'interceptor', dir = 'controllers', suffix = 'Interceptor' },
 }
 
 local function is_dir(path)
