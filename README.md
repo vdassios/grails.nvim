@@ -18,7 +18,7 @@ Grails support for Neovim: a tree-sitter grammar for GSP (Groovy Server Pages), 
 - A Grails project with the Gradle layout, `grails-app/` in each module: Grails 3 or later for the Lua server, Grails 4 or later for `grails_ls` (it reports `failed` on Grails 3's Groovy 2.4).
 - The `groovy` and `html` tree-sitter parsers. The server reads Groovy files with the `groovy` parser, and GSP pages inject `html` and `groovy`.
 - To build the `gsp` parser: [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter) (`main` branch), or the `tree-sitter` CLI and a C compiler ([without nvim-treesitter](docs/grammar.md#without-nvim-treesitter)).
-- For `grails_ls`: `curl` (for `:GrailsInstallServer`) and the project's JDK, Java 11 or later (see "Configuration").
+- For `grails_ls`: `curl` and `sha256sum` or `shasum` (for `:GrailsInstallServer`) and the project's JDK, Java 11 or later (see "Configuration").
 
 ## Installation
 
@@ -75,7 +75,7 @@ If you also use [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig) and i
 |---|---|---|
 | `:GrailsAlternate` | `<localleader>Ga` | From a controller action, open its view. From a view, go to the matching action. From a domain class, controller or service, cycle to the artefact of the same name. |
 | `:GrailsReindex` | `<localleader>Gi` | Drop the Lua server's cached project index. It is also dropped when a file under `grails-app/` is saved. |
-| `:GrailsInstallServer` | `<localleader>GI` | Download the jar of the newest grails-language-server release, pre-releases included, to `stdpath('data')/grails.nvim/`. Does nothing when that release is installed; `:GrailsInstallServer!` downloads it again. A running client keeps the old jar until it restarts. |
+| `:GrailsInstallServer [tag]` | `<localleader>GI` | Download the grails-language-server jar to `stdpath('data')/grails.nvim/`: from the newest stable release, or the newest pre-release when no stable release has the jar (it says which), or from release `[tag]` (such as `v0.1.2-m6`). The download is checked against the SHA-256 digest GitHub publishes for it and is not installed when it does not match; a release without a digest is installed with a warning. Does nothing when that release is installed; `:GrailsInstallServer!` downloads it again. A running client keeps the old jar until it restarts. |
 | `:GrailsReloadProject` | `<localleader>Gr` | `grails_ls` resolves the Gradle project again, ignoring its cache. Run it after a dependency change. |
 | `:GrailsDownloadSources` | `<localleader>Gs` | `grails_ls` fetches the sources jars the project's libraries lack, with the project's Gradle, so definition and hover reach library code. Reports how many libraries have sources now. |
 | `:GrailsTrust` | none | Trust the current buffer's Grails project, so `grails_ls` may run its Gradle build, and start `grails_ls` for that project's open buffers. Remembered across sessions. |

@@ -357,68 +357,157 @@ function M.download_sources()
   end)
 end
 
---- The newest release (pre-releases included) that has the jar, from the GitHub API's release list.
---- @return { tag: string, url: string }?
-function M.pick_release(releases)
+--- The release to install from the GitHub API's release list (newest first), among the non-draft releases that have
+--- the jar: the one tagged `tag` when given; else the newest stable release, and only when there is none the newest
+--- pre-release.
+--- @param releases table[]
+--- @param tag? string
+--- @return { tag: string, url: string, digest?: string, prerelease: boolean }?
+function M.pick_release(releases, tag)
+  local newest_pre
   for _, release in ipairs(releases) do
-    if not release.draft then
+    if not release.draft and (not tag or release.tag_name == tag) then
       for _, asset in ipairs(release.assets or {}) do
         if asset.name == M.asset then
-          return { tag = release.tag_name, url = asset.browser_download_url }
+          local digest = type(asset.digest) == 'string' and asset.digest or nil
+          local pick = { tag = release.tag_name, url = asset.browser_download_url, digest = digest, prerelease = release.prerelease == true }
+          if tag or not pick.prerelease then
+            return pick
+          end
+          newest_pre = newest_pre or pick
         end
       end
     end
   end
+  return newest_pre
 end
 
-local function curl(args, done)
-  vim.system(vim.list_extend({ 'curl', '-fsSL', '--retry', '2' }, args), { text = true }, vim.schedule_wrap(done))
+--- Seconds curl may take to list the releases, and to download the jar.
+M.list_timeout, M.download_timeout = 30, 300
+
+--- Runs curl with `args` and calls `done(result)` on the main loop, or `fail(message)` when curl cannot be run.
+local function curl(args, fail, done)
+  local cmd = vim.list_extend({ 'curl', '--silent', '--show-error', '--location', '--retry', '2' }, args)
+  local ok, err = pcall(vim.system, cmd, { text = true }, vim.schedule_wrap(done))
+  if not ok then
+    fail(('curl could not be run (%s). Install curl, or download the jar yourself and set vim.g.grails_ls.jar.'):format(err))
+  end
 end
 
---- `:GrailsInstallServer`: downloads the newest release's jar into `install_dir()`. `force` downloads it even when
---- that release is installed already.
+--- Why curl failed, readably: a timeout, GitHub's rate limit, or curl's own message.
+--- @param res vim.SystemCompleted
+--- @param timeout integer the `--max-time` it ran with
+local function curl_error(res, timeout)
+  if res.code == 28 then
+    return ('it timed out after %d seconds'):format(timeout)
+  end
+  local ok, body = pcall(vim.json.decode, res.stdout or '')
+  local message = ok and type(body) == 'table' and type(body.message) == 'string' and body.message or nil
+  if message and message:lower():find 'rate limit' then
+    return "GitHub's API rate limit for this address is used up. Try again in an hour."
+  end
+  local err = vim.trim(res.stderr or '')
+  err = err ~= '' and err or ('curl exited with %d'):format(res.code)
+  return message and ('%s (%s)'):format(err, message) or err
+end
+
+--- SHA-256 of the file `path`, as `sha256:<hex>`, with `sha256sum` or `shasum` (Neovim's `sha256()` reads only
+--- text before 0.12); `done(digest)`, or `done(nil, err)`.
+--- @param path string
+--- @param done fun(digest?: string, err?: string)
+local function sha256(path, done)
+  local cmd = vim.fn.executable 'sha256sum' == 1 and { 'sha256sum', path } or { 'shasum', '-a', '256', path }
+  local ok, err = pcall(vim.system, cmd, { text = true }, function(res)
+    local hex = res.code == 0 and res.stdout:match '^(%x+)%s'
+    local problem = not hex and (vim.trim(res.stderr or '') ~= '' and vim.trim(res.stderr) or ('%s exited with %d'):format(cmd[1], res.code))
+    vim.schedule(function()
+      done(hex and 'sha256:' .. hex:lower(), problem or nil)
+    end)
+  end)
+  if not ok then
+    vim.schedule(function()
+      done(nil, err)
+    end)
+  end
+end
+
+--- `:GrailsInstallServer[!] [tag]`: downloads the jar of release `tag`, else of the newest stable release (the newest
+--- pre-release when there is none), into `install_dir()`, checked against the release's SHA-256 digest. `force`
+--- downloads it even when that release is installed already.
 --- @param force? boolean
+--- @param tag? string
 --- @param done? fun(ok: boolean) called when finished (tests)
-function M.install(force, done)
+function M.install(force, tag, done)
   done = done or function() end
+  tag = tag ~= '' and tag or nil
   local dir = M.install_dir()
+  local target = vim.fs.joinpath(dir, M.asset)
   local version_file = vim.fs.joinpath(dir, 'version')
   local function fail(msg)
     vim.notify('GrailsInstallServer: ' .. msg, vim.log.levels.ERROR)
     done(false)
   end
-  vim.notify 'GrailsInstallServer: looking up the newest release'
-  curl({ '-H', 'Accept: application/vnd.github+json', M.releases_url }, function(res)
+  vim.notify(tag and ('GrailsInstallServer: looking up release %s'):format(tag) or 'GrailsInstallServer: looking up the newest release')
+  local list_args = { '--fail-with-body', '--max-time', tostring(M.list_timeout), '-H', 'Accept: application/vnd.github+json', M.releases_url }
+  curl(list_args, fail, function(res)
     if res.code ~= 0 then
-      return fail('listing releases failed: ' .. vim.trim(res.stderr or ''))
+      return fail('listing the releases failed: ' .. curl_error(res, M.list_timeout))
     end
     local ok, releases = pcall(vim.json.decode, res.stdout)
-    local release = ok and type(releases) == 'table' and M.pick_release(releases)
+    local release = ok and type(releases) == 'table' and M.pick_release(releases, tag)
     if not release then
-      return fail('no release has ' .. M.asset)
+      return fail(tag and ('no release %s has %s'):format(tag, M.asset) or ('no release has ' .. M.asset))
     end
-    local installed = vim.uv.fs_stat(M.jar()) and vim.fn.filereadable(version_file) == 1 and vim.fn.readfile(version_file)[1]
+    local installed = vim.uv.fs_stat(target) and lines(version_file)[1]
     if installed == release.tag and not force then
       vim.notify(('GrailsInstallServer: %s is installed already (:GrailsInstallServer! downloads it again)'):format(release.tag))
       return done(true)
     end
+    local expected = release.digest and release.digest:match '^sha256:(%x+)$'
+    if release.digest and not expected then
+      return fail(('%s has a digest this client cannot check: %s'):format(release.tag, release.digest))
+    end
     vim.fn.mkdir(dir, 'p')
-    local target = vim.fs.joinpath(dir, M.asset)
-    local partial = target .. '.part'
-    curl({ '-o', partial, release.url }, function(get)
-      if get.code ~= 0 then
-        os.remove(partial)
-        return fail(('downloading %s failed: %s'):format(release.url, vim.trim(get.stderr or '')))
-      end
+    -- A name of its own, so concurrent runs never write one file; renamed into place, so the jar is never partial.
+    local fd, partial = vim.uv.fs_mkstemp(target .. '.XXXXXX')
+    if not fd then
+      return fail(('cannot write to %s: %s'):format(dir, partial))
+    end
+    vim.uv.fs_close(fd)
+    vim.uv.fs_chmod(partial, tonumber('644', 8)) -- mkstemp makes it 600
+    local function discard(msg)
+      os.remove(partial)
+      fail(msg)
+    end
+    local function finish()
       local renamed, err = os.rename(partial, target)
       if not renamed then
-        return fail(err)
+        return discard(err)
       end
       vim.fn.writefile({ release.tag }, version_file)
+      local kind = release.prerelease and (tag and ' (a pre-release)' or ' (a pre-release: no stable release has the jar)') or ''
       local note = settings().jar and ' (unused while vim.g.grails_ls.jar is set)' or ''
-      local text = 'GrailsInstallServer: installed %s at %s%s. Reopen a Groovy or GSP file to start it; restart a running client.'
-      vim.notify(text:format(release.tag, target, note))
+      local text = 'GrailsInstallServer: installed %s%s at %s%s. Reopen a Groovy or GSP file to start it; restart a running client.'
+      vim.notify(text:format(release.tag, kind, target, note))
       done(true)
+    end
+    curl({ '--fail', '--max-time', tostring(M.download_timeout), '-o', partial, release.url }, discard, function(get)
+      if get.code ~= 0 then
+        return discard(('downloading %s failed: %s'):format(release.url, curl_error(get, M.download_timeout)))
+      end
+      if not expected then
+        local text = 'GrailsInstallServer: release %s publishes no digest for %s, so the download is not verified'
+        vim.notify(text:format(release.tag, M.asset), vim.log.levels.WARN)
+        return finish()
+      end
+      sha256(partial, function(actual, err)
+        if not actual then
+          return discard('checking the download failed: ' .. err)
+        elseif actual ~= 'sha256:' .. expected:lower() then
+          return discard(('the download of %s does not match its digest (%s, got %s); nothing was installed'):format(release.tag, release.digest, actual))
+        end
+        finish()
+      end)
     end)
   end)
 end

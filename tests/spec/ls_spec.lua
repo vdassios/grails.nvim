@@ -241,52 +241,228 @@ function T.commands_send_the_server_requests()
   h.eq(vim.log.levels.WARN, notes[2].level, 'no client: warned')
 end
 
-function T.pick_release_takes_the_newest_with_the_jar()
+function T.pick_release_prefers_the_newest_stable_release_with_the_jar()
+  local function rel(tag, pre, name, url, digest)
+    return { tag_name = tag, prerelease = pre, assets = { { name = name or ls.asset, browser_download_url = url or tag, digest = digest } } }
+  end
   local releases = {
-    { tag_name = 'v0.3.0', draft = true, assets = { { name = ls.asset, browser_download_url = 'd' } } },
-    { tag_name = 'v0.2.0-rc1', prerelease = true, assets = { { name = 'other.zip', browser_download_url = 'x' } } },
-    { tag_name = 'v0.1.0-m6', prerelease = true, assets = { { name = ls.asset, browser_download_url = 'u' } } },
+    { tag_name = 'v0.4.0', draft = true, assets = { { name = ls.asset, browser_download_url = 'd' } } },
+    rel('v0.3.0-rc1', true),
+    rel('v0.2.1', false, 'other.zip'),
+    rel('v0.2.0', false, nil, 'u', 'sha256:ab'),
+    rel('v0.1.0', false),
   }
-  h.eq({ tag = 'v0.1.0-m6', url = 'u' }, ls.pick_release(releases))
+  h.eq({ tag = 'v0.2.0', url = 'u', digest = 'sha256:ab', prerelease = false }, ls.pick_release(releases))
+  h.eq({ tag = 'v0.3.0-rc1', url = 'v0.3.0-rc1', prerelease = true }, ls.pick_release { releases[2], releases[3] }, 'only pre-releases')
+  h.eq({ tag = 'v0.1.0', url = 'v0.1.0', prerelease = false }, ls.pick_release(releases, 'v0.1.0'), 'a tag')
+  h.eq({ tag = 'v0.3.0-rc1', url = 'v0.3.0-rc1', prerelease = true }, ls.pick_release(releases, 'v0.3.0-rc1'), 'a pre-release tag')
+  h.eq(nil, ls.pick_release(releases, 'v0.4.0'), 'a draft')
+  h.eq(nil, ls.pick_release(releases, 'v0.2.1'), 'a release without the jar')
   h.eq(nil, ls.pick_release {})
 end
 
-function T.install_downloads_the_jar_once()
+--- A release list entry with the jar.
+local function release(tag, digest, prerelease)
+  local asset = { name = ls.asset, browser_download_url = 'https://example.invalid/' .. tag .. '/' .. ls.asset, digest = digest }
+  return { tag_name = tag, prerelease = prerelease or false, assets = { asset } }
+end
+
+local function sha256(text)
+  return 'sha256:' .. vim.fn.sha256(text)
+end
+
+--- Runs `:GrailsInstallServer` (`ls.install(force, tag)`) into a fresh install directory (or `dir`) with `vim.system`
+--- stubbed for `curl`: `answer(url, args)` returns the result (`code`, `stdout`, `stderr`, and `body`, which is
+--- written to the `-o` file). Other commands run for real. Returns the outcome, the notifications, the curl command
+--- lines and the install directory.
+local function install(answer, opts)
+  opts = opts or {}
+  local dir = opts.dir or vim.fn.tempname()
+  local saved_system, saved_dir = vim.system, ls.install_dir
+  local calls = {}
+  vim.system = function(cmd, sysopts, on_exit)
+    if cmd[1] ~= 'curl' then
+      return saved_system(cmd, sysopts, on_exit)
+    end
+    calls[#calls + 1] = cmd
+    local res = answer(cmd[#cmd], cmd)
+    local out = vim.list_contains(cmd, '-o') and cmd[vim.fn.index(cmd, '-o') + 2]
+    if out and res.body then
+      vim.fn.writefile({ res.body }, out, 'b')
+    end
+    vim.schedule(function()
+      on_exit { code = res.code or 0, signal = 0, stdout = res.stdout or '', stderr = res.stderr or '' }
+    end)
+    return {}
+  end
+  ls.install_dir = function()
+    return dir
+  end
+  local results = {}
+  local notes = with(opts.settings, nil, function()
+    for _ = 1, opts.runs or 1 do
+      ls.install(opts.force, opts.tag, function(ok)
+        results[#results + 1] = ok
+      end)
+    end
+    vim.wait(5000, function()
+      return #results == (opts.runs or 1)
+    end)
+  end)
+  vim.system, ls.install_dir = saved_system, saved_dir
+  local msgs = vim.tbl_map(function(n)
+    return n.msg
+  end, notes)
+  return { ok = results[1], results = results, notes = notes, msgs = table.concat(msgs, '\n'), calls = calls, dir = dir }
+end
+
+--- `answer` for `install`: the release list `list`, and `bytes` for every jar URL.
+local function github(list, bytes)
+  return function(url)
+    if url == ls.releases_url then
+      return { stdout = vim.json.encode(list) }
+    end
+    return { body = bytes or 'jar bytes' }
+  end
+end
+
+--- Files in `dir`, sorted.
+local function files(dir)
+  local names = {}
+  for name in vim.fs.dir(dir) do
+    names[#names + 1] = name
+  end
+  table.sort(names)
+  return names
+end
+
+function T.install_takes_the_newest_stable_release_and_checks_its_digest()
+  local list = { release('v0.3.0-rc1', sha256 'rc', true), release('v0.2.0', sha256 'jar bytes'), release('v0.1.0', sha256 'old') }
+  local r = install(github(list))
+  h.eq(true, r.ok, r.msgs)
+  assert(r.msgs:find 'installed v0%.2%.0 at', r.msgs)
+  assert(not r.msgs:find 'pre%-release', r.msgs)
+  h.eq({ 'jar bytes' }, vim.fn.readfile(r.dir .. '/' .. ls.asset))
+  h.eq({ 'v0.2.0' }, vim.fn.readfile(r.dir .. '/version'))
+  h.eq('rw-r--r--', vim.fn.getfperm(r.dir .. '/' .. ls.asset))
+  h.eq({ ls.asset, 'version' }, files(r.dir), 'no temporary file is left')
+  for _, cmd in ipairs(r.calls) do
+    assert(vim.list_contains(cmd, '--max-time'), table.concat(cmd, ' '))
+    assert(vim.list_contains(cmd, '--fail') or vim.list_contains(cmd, '--fail-with-body'), table.concat(cmd, ' '))
+  end
+
+  local again = install(github(list, 'other bytes'), { dir = r.dir })
+  h.eq(true, again.ok)
+  assert(again.notes[#again.notes].msg:find 'v0%.2%.0 is installed already', again.msgs)
+  h.eq(1, #again.calls, 'no download')
+
+  local forced = install(github(list), { dir = r.dir, force = true })
+  h.eq(true, forced.ok, forced.msgs)
+  h.eq(2, #forced.calls)
+end
+
+function T.install_takes_the_newest_pre_release_when_no_stable_release_has_the_jar()
+  local stable_without_jar = { tag_name = 'v0.2.0', prerelease = false, assets = { { name = 'other.zip', browser_download_url = 'x' } } }
+  local list = { release('v0.3.0-rc1', sha256 'jar bytes', true), stable_without_jar, release('v0.1.0-m6', sha256 'old', true) }
+  local r = install(github(list))
+  h.eq(true, r.ok, r.msgs)
+  assert(r.msgs:find 'installed v0%.3%.0%-rc1', r.msgs)
+  assert(r.msgs:find 'pre%-release', r.msgs)
+  h.eq({ 'v0.3.0-rc1' }, vim.fn.readfile(r.dir .. '/version'))
+end
+
+function T.install_takes_a_given_tag()
+  local list = { release('v0.2.0', sha256 'new'), release('v0.1.0-m6', sha256 'jar bytes', true) }
+  local r = install(github(list), { tag = 'v0.1.0-m6' })
+  h.eq(true, r.ok, r.msgs)
+  h.eq({ 'v0.1.0-m6' }, vim.fn.readfile(r.dir .. '/version'))
+  assert(r.msgs:find 'installed v0%.1%.0%-m6 %(a pre%-release%) at', r.msgs)
+  h.eq('https://example.invalid/v0.1.0-m6/' .. ls.asset, r.calls[2][#r.calls[2]])
+
+  local missing = install(github(list), { tag = 'v9.9.9' })
+  h.eq(false, missing.ok)
+  h.eq(vim.log.levels.ERROR, missing.notes[#missing.notes].level)
+  assert(missing.msgs:find 'v9%.9%.9', missing.msgs)
+  h.eq(1, #missing.calls)
+end
+
+function T.install_fails_readably_without_curl()
+  local r = install(function()
+    error "vim/_core/system:324: ENOENT: no such file or directory (cmd): 'curl'"
+  end)
+  h.eq(false, r.ok)
+  h.eq(vim.log.levels.ERROR, r.notes[#r.notes].level)
+  assert(r.notes[#r.notes].msg:find 'curl', r.msgs)
+end
+
+function T.install_fails_readably_on_a_stalled_download_and_keeps_the_installed_jar()
+  local list = { release('v0.2.0', sha256 'jar bytes') }
+  local r = install(github { release('v0.1.0', sha256 'jar bytes') })
+  h.eq(true, r.ok, r.msgs)
+  local stalled = install(function(url)
+    if url == ls.releases_url then
+      return { stdout = vim.json.encode(list) }
+    end
+    return { code = 28, body = 'half a', stderr = 'curl: (28) Operation timed out after 120002 milliseconds with 6 bytes received' }
+  end, { dir = r.dir })
+  h.eq(false, stalled.ok)
+  h.eq(vim.log.levels.ERROR, stalled.notes[#stalled.notes].level)
+  assert(stalled.notes[#stalled.notes].msg:find 'timed out', stalled.msgs)
+  h.eq({ 'jar bytes' }, vim.fn.readfile(r.dir .. '/' .. ls.asset))
+  h.eq({ 'v0.1.0' }, vim.fn.readfile(r.dir .. '/version'))
+  h.eq({ ls.asset, 'version' }, files(r.dir), 'the partial download is removed')
+end
+
+function T.install_refuses_a_download_that_does_not_match_the_digest()
+  local r = install(github({ release('v0.2.0', sha256 'the real jar') }, 'tampered bytes'))
+  h.eq(false, r.ok)
+  h.eq(vim.log.levels.ERROR, r.notes[#r.notes].level)
+  assert(r.notes[#r.notes].msg:find 'digest', r.msgs)
+  h.eq({}, files(r.dir), 'nothing is installed')
+end
+
+function T.install_warns_when_the_release_has_no_digest()
+  local r = install(github { release('v0.1.0-m6', vim.NIL, true) })
+  h.eq(true, r.ok, r.msgs)
+  local warned = vim.tbl_filter(function(n)
+    return n.level == vim.log.levels.WARN
+  end, r.notes)
+  h.eq(1, #warned, r.msgs)
+  assert(warned[1].msg:find 'no digest', warned[1].msg)
+  h.eq({ 'jar bytes' }, vim.fn.readfile(r.dir .. '/' .. ls.asset))
+end
+
+function T.install_explains_a_rate_limited_api()
+  local body = vim.json.encode {
+    message = "API rate limit exceeded for 192.0.2.1. (But here's the good news: Authenticated requests get a higher rate limit.)",
+    documentation_url = 'https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting',
+  }
+  local r = install(function()
+    return { code = 22, stdout = body, stderr = 'curl: (22) The requested URL returned error: 403' }
+  end)
+  h.eq(false, r.ok)
+  local msg = r.notes[#r.notes].msg
+  assert(msg:find 'rate limit', msg)
+  assert(not msg:find '{', msg)
+end
+
+function T.install_checks_its_own_jar_not_the_users_override()
+  local override = vim.fn.tempname()
+  vim.fn.writefile({ 'my own build' }, override)
   local dir = vim.fn.tempname()
   vim.fn.mkdir(dir, 'p')
-  vim.fn.writefile({ 'jar bytes' }, dir .. '/release.jar')
-  local list = { { tag_name = 'v0.1.0-m6', assets = { { name = ls.asset, browser_download_url = 'file://' .. dir .. '/release.jar' } } } }
-  vim.fn.writefile({ vim.json.encode(list) }, dir .. '/releases.json')
-  local saved_url, saved_dir = ls.releases_url, ls.install_dir
-  ls.releases_url = 'file://' .. dir .. '/releases.json'
-  ls.install_dir = function()
-    return dir .. '/data'
-  end
-  local function install(force)
-    local result
-    local notes = with(nil, nil, function()
-      ls.install(force, function(ok)
-        result = ok
-      end)
-      vim.wait(5000, function()
-        return result ~= nil
-      end)
-    end)
-    return result, notes[#notes].msg
-  end
-  local ok1, msg1 = install(false)
-  local ok2, msg2 = install(false)
-  vim.fn.writefile({ 'newer bytes' }, dir .. '/release.jar')
-  local ok3, msg3 = install(true)
-  ls.releases_url, ls.install_dir = saved_url, saved_dir
-  h.eq(true, ok1, msg1)
-  assert(msg1:find 'installed v0.1.0%-m6', msg1)
-  h.eq(true, ok2)
-  assert(msg2:find 'installed already', msg2)
-  h.eq(true, ok3)
-  h.eq({ 'newer bytes' }, vim.fn.readfile(dir .. '/data/' .. ls.asset))
-  h.eq({ 'v0.1.0-m6' }, vim.fn.readfile(dir .. '/data/version'))
-  h.eq(0, vim.fn.filereadable(dir .. '/data/' .. ls.asset .. '.part'))
+  vim.fn.writefile({ 'v0.2.0' }, dir .. '/version')
+  local r = install(github { release('v0.2.0', sha256 'jar bytes') }, { dir = dir, settings = { jar = override } })
+  h.eq(true, r.ok, r.msgs)
+  h.eq(2, #r.calls, 'downloaded: the install target has no jar')
+  h.eq({ 'jar bytes' }, vim.fn.readfile(dir .. '/' .. ls.asset))
+  h.eq({ 'my own build' }, vim.fn.readfile(override))
+end
+
+function T.concurrent_installs_do_not_share_a_temporary_file()
+  local r = install(github { release('v0.2.0', sha256 'jar bytes') }, { runs = 2 })
+  h.eq({ true, true }, r.results, r.msgs)
+  h.eq({ ls.asset, 'version' }, files(r.dir))
 end
 
 return T

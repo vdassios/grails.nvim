@@ -32,8 +32,12 @@ vim.api.nvim_create_user_command('GrailsReindex', function()
 end, { desc = 'Grails: drop the cached project index' })
 
 vim.api.nvim_create_user_command('GrailsInstallServer', function(opts)
-  require('grails.ls').install(opts.bang)
-end, { bang = true, desc = 'Grails: download the newest grails-language-server release (! downloads it again)' })
+  require('grails.ls').install(opts.bang, opts.args)
+end, {
+  bang = true,
+  nargs = '?',
+  desc = 'Grails: download the newest stable grails-language-server release, or the one tagged [tag] (! downloads it again)',
+})
 
 vim.api.nvim_create_user_command('GrailsReloadProject', function()
   require('grails.ls').reload_project()
