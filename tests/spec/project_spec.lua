@@ -37,6 +37,37 @@ function T.modules()
   h.eq({ h.path 'core', h.path 'web' }, project.modules(h.app))
 end
 
+--- A temporary directory (real path) with an empty `settings.gradle` and a `grails-app/` under each of `modules`.
+local function build(modules)
+  local dir = vim.fn.tempname()
+  vim.fn.mkdir(dir, 'p')
+  dir = vim.uv.fs_realpath(dir)
+  vim.fn.writefile({}, dir .. '/settings.gradle')
+  for _, mod in ipairs(modules) do
+    vim.fn.mkdir(dir .. '/' .. mod .. '/grails-app/controllers', 'p')
+  end
+  return dir
+end
+
+function T.a_nested_build_is_not_a_module_of_the_outer_build()
+  local dir = build { 'app', 'demo/nested', 'demo/nested/core', 'side' }
+  vim.fn.writefile({}, dir .. '/demo/nested/settings.gradle.kts')
+  vim.fn.writefile({}, dir .. '/side/settings.gradle')
+  vim.fn.writefile({}, dir .. '/app/grails-app/controllers/OuterController.groovy')
+  vim.fn.writefile({}, dir .. '/demo/nested/core/grails-app/controllers/InnerController.groovy')
+  local function controllers(root)
+    return vim.tbl_map(function(a)
+      return a.class
+    end, project.artefacts(root, { kind = 'controller' }))
+  end
+  h.eq({ dir .. '/app' }, project.modules(dir))
+  h.eq({ 'OuterController' }, controllers(dir))
+  h.eq({ dir .. '/demo/nested', dir .. '/demo/nested/core' }, project.modules(dir .. '/demo/nested'))
+  h.eq({ 'InnerController' }, controllers(dir .. '/demo/nested'))
+  project.reset()
+  vim.fn.delete(dir, 'rf')
+end
+
 function T.current_module_searched_first()
   h.eq({ h.path 'web', h.path 'core' }, project.search_order(h.app, h.path 'web/grails-app/views/book/list.gsp'))
 end

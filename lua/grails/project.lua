@@ -99,7 +99,8 @@ local function index(root)
   return cache[root]
 end
 
---- Module directories (each holds a `grails-app/`), up to three levels below the root.
+--- Module directories (each holds a `grails-app/`), up to three levels below the root. A directory with its own
+--- `settings.gradle(.kts)` is another build (`find_root`), so it and everything below it are left out.
 --- @param root string
 --- @return string[]
 function M.modules(root)
@@ -110,7 +111,11 @@ function M.modules(root)
   local mods = {}
   local skip = function(dir)
     local name = vim.fs.basename(dir)
-    return not SKIP[name] and name:sub(1, 1) ~= '.'
+    if SKIP[name] or name:sub(1, 1) == '.' then
+      return false
+    end
+    local path = vim.fs.joinpath(root, dir)
+    return not (is_file(vim.fs.joinpath(path, 'settings.gradle')) or is_file(vim.fs.joinpath(path, 'settings.gradle.kts')))
   end
   for name, type in vim.fs.dir(root, { depth = 4, skip = skip }) do
     if type == 'directory' and vim.fs.basename(name) == 'grails-app' then
