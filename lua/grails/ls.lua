@@ -24,21 +24,157 @@ function M.jar()
   return settings().jar and vim.fs.normalize(settings().jar) or vim.fs.joinpath(M.install_dir(), M.asset)
 end
 
---- `vim.g.grails_ls.java`, else the JDK of `$JAVA_HOME`, else `java` from `PATH`. The server must run on the
---- project's JDK: it compiles with the project's Groovy, whose class-file reader is bounded by the JDK version.
-function M.java()
+local function warn(text, ...)
+  vim.notify_once(('grails_ls: ' .. text):format(...), vim.log.levels.WARN)
+end
+
+--- Lines of `path`, or an empty list when it cannot be read.
+--- @param path string
+--- @return string[]
+local function lines(path)
+  local ok, read = pcall(vim.fn.readfile, path)
+  return ok and read or {}
+end
+
+--- `org.gradle.java.home` in `<root>/gradle.properties` (Java properties syntax: `=`, `:` or blanks separate the
+--- key, `\` escapes).
+--- @param root string
+--- @return string?
+local function gradle_java_home(root)
+  for _, line in ipairs(lines(vim.fs.joinpath(root, 'gradle.properties'))) do
+    local value = line:match '^%s*org%.gradle%.java%.home%s*[=:%s]%s*(.-)%s*$'
+    if value and value ~= '' then
+      return (value:gsub('\\(.)', '%1'))
+    end
+  end
+end
+
+--- `java=<id>` in `<root>/.sdkmanrc`.
+--- @param root string
+--- @return string?
+local function sdkman_id(root)
+  for _, line in ipairs(lines(vim.fs.joinpath(root, '.sdkmanrc'))) do
+    local id = line:match '^%s*java%s*=%s*(.-)%s*$'
+    if id and id ~= '' then
+      return id
+    end
+  end
+end
+
+--- `<home>/bin/java` when it is executable.
+--- @param home string
+--- @return string?
+local function home_java(home)
+  local java = vim.fs.joinpath(home, 'bin', 'java')
+  if vim.fn.executable(java) == 1 then
+    return java
+  end
+end
+
+--- The `java` the server runs on for `root`, first match wins: `vim.g.grails_ls.java`; for a trusted `root`,
+--- `org.gradle.java.home` in its `gradle.properties`, then `java=<id>` in its `.sdkmanrc` (an SDKMAN JDK under
+--- `$SDKMAN_DIR`, default `~/.sdkman`); the JDK of `$JAVA_HOME`; `java` from `PATH`. A source that names no usable
+--- JDK is warned about once and skipped. The server must run on the project's JDK: it compiles with the project's
+--- Groovy, whose class-file reader is bounded by the JDK version. Project files are read only for a trusted root,
+--- because they name a binary to run.
+--- @param root? string
+--- @return string
+function M.java(root)
   if settings().java then
     return vim.fs.normalize(settings().java)
   end
+  if root and require('grails.trust').is_trusted(root) then
+    local home = gradle_java_home(root)
+    if home then
+      local java = home:sub(1, 1) == '/' and home_java(home)
+      if java then
+        return java
+      end
+      warn('org.gradle.java.home in %s/gradle.properties is %s, which has no bin/java; ignoring it', root, home)
+    end
+    local id = sdkman_id(root)
+    if id then
+      local sdkman = vim.env.SDKMAN_DIR and vim.env.SDKMAN_DIR ~= '' and vim.env.SDKMAN_DIR or vim.fs.joinpath(vim.env.HOME, '.sdkman')
+      if id:find '[/\\]' or id == '.' or id == '..' then
+        warn('%s/.sdkmanrc names java=%s, which is not an SDKMAN identifier; ignoring it', root, id)
+      else
+        local java = home_java(vim.fs.joinpath(sdkman, 'candidates', 'java', id))
+        if java then
+          return java
+        end
+        warn('%s/.sdkmanrc names java=%s, which is not installed (sdk install java %s); ignoring it', root, id, id)
+      end
+    end
+  end
   local home = vim.env.JAVA_HOME
-  if home and home ~= '' and vim.fn.executable(home .. '/bin/java') == 1 then
-    return home .. '/bin/java'
+  if home and home ~= '' then
+    local java = home_java(home)
+    if java then
+      return java
+    end
+    warn('JAVA_HOME is %s, which has no bin/java; ignoring it', home)
   end
   return 'java'
 end
 
-function M.cmd()
-  return { M.java(), '-jar', M.jar() }
+--- The command that runs the server for `root`.
+--- @param root? string
+function M.cmd(root)
+  return { M.java(root), '-jar', M.jar() }
+end
+
+--- `cmd` of the client: the server on the JDK of the client's root.
+--- @param dispatchers vim.lsp.rpc.Dispatchers
+--- @param config vim.lsp.ClientConfig
+function M.rpc(dispatchers, config)
+  return vim.lsp.rpc.start(M.cmd(config.root_dir), dispatchers)
+end
+
+--- Binaries whose `java -version` passed (=> true), or are being checked (=> callbacks waiting for the result).
+--- @type table<string, true|fun(ok: boolean)[]>
+local checked = {}
+
+--- Runs `java -version` once per binary, asynchronously, and calls `done(ok)`. Not ok, and warned once: no JDK
+--- behind the binary (such as the macOS `/usr/bin/java` stub) or a Java older than 11. A version it cannot read
+--- passes. Only a pass is remembered, so a JDK installed later is picked up.
+--- @param java string
+--- @param done fun(ok: boolean)
+function M.check_java(java, done)
+  local state = checked[java]
+  if state == true then
+    return done(true)
+  elseif state then
+    state[#state + 1] = done
+    return
+  end
+  local waiting = { done }
+  checked[java] = waiting
+  local function finish(ok)
+    checked[java] = ok or nil
+    for _, cb in ipairs(waiting) do
+      cb(ok)
+    end
+  end
+  local started, err = pcall(vim.system, { java, '-version' }, { text = true }, function(res)
+    vim.schedule(function()
+      local out = vim.trim((res.stderr or '') .. '\n' .. (res.stdout or ''))
+      if res.code ~= 0 then
+        warn('`%s` found no usable JDK: %s. Install JDK 11 or later, or set vim.g.grails_ls.java.', java, out:match '[^\n]*')
+        return finish(false)
+      end
+      local major, minor = out:match 'version "(%d+)%.?(%d*)'
+      local version = tonumber(major == '1' and minor or major)
+      if version and version < 11 then
+        warn("`%s` is Java %d; the server needs Java 11 or later. Set vim.g.grails_ls.java or the project's JDK.", java, version)
+        return finish(false)
+      end
+      finish(true)
+    end)
+  end)
+  if not started then
+    warn('`%s` could not be run: %s', java, err)
+    finish(false)
+  end
 end
 
 --- The Gradle root of `bufnr` when it is a Grails build: the nearest directory with `settings.gradle(.kts)` or
@@ -57,7 +193,7 @@ end
 local SOURCE = { groovy = true, gsp = true }
 
 --- `root_dir` of the client: the Grails root of a Groovy or GSP source file, once the root is trusted
---- (`:GrailsTrust`) and the jar and `java` exist. Each missing condition is notified once.
+--- (`:GrailsTrust`), the jar exists and the root's `java` runs Java 11 or later (checked asynchronously). Each missing condition is notified once.
 --- @param bufnr integer
 --- @param on_dir fun(root: string)
 function M.root_dir(bufnr, on_dir)
@@ -74,14 +210,19 @@ function M.root_dir(bufnr, on_dir)
     return
   end
   if not vim.uv.fs_stat(M.jar()) then
-    vim.notify_once(('grails_ls: no server jar at %s. Run :GrailsInstallServer, or set vim.g.grails_ls.jar.'):format(M.jar()), vim.log.levels.WARN)
+    warn('no server jar at %s. Run :GrailsInstallServer, or set vim.g.grails_ls.jar.', M.jar())
     return
   end
-  if vim.fn.executable(M.java()) ~= 1 then
-    vim.notify_once(('grails_ls: `%s` is not executable. Set JAVA_HOME or vim.g.grails_ls.java.'):format(M.java()), vim.log.levels.WARN)
+  local java = M.java(root)
+  if vim.fn.executable(java) ~= 1 then
+    warn("`%s` is not executable. Set JAVA_HOME, the project's JDK or vim.g.grails_ls.java.", java)
     return
   end
-  on_dir(root)
+  M.check_java(java, function(ok)
+    if ok then
+      on_dir(root)
+    end
+  end)
 end
 
 --- `before_init` of the client: `initializationOptions.trusted` is whether the allowlist has the root the server

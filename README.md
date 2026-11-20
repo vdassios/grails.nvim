@@ -99,15 +99,23 @@ vim.g.grails_default_mappings = false
 
 ## Configuration
 
-`after/lsp/grails_ls.lua` starts the server jar on `.groovy` and `.gsp` source files of a Grails build: the root is the nearest directory with `settings.gradle`, `settings.gradle.kts` or `gradlew`, and it must have a module with `grails-app/`. It never starts for `*.gradle` files or a `Jenkinsfile`, nor for a Gradle build without `grails-app/` (such as `buildSrc`). It does not start, and says why once, while the root is not trusted or the jar or `java` is missing.
+`after/lsp/grails_ls.lua` starts the server jar on `.groovy` and `.gsp` source files of a Grails build: the root is the nearest directory with `settings.gradle`, `settings.gradle.kts` or `gradlew`, and it must have a module with `grails-app/`. It never starts for `*.gradle` files or a `Jenkinsfile`, nor for a Gradle build without `grails-app/` (such as `buildSrc`). It does not start, and says why once, while the root is not trusted, the jar is missing or there is no usable JDK.
 
 **Trust.** The server runs the project's Gradle build scripts (and its Gradle wrapper) and its AST transformations, so it executes project code. `grails_ls` therefore starts only in a root you have trusted: opening a file of an untrusted Grails project shows one notice naming `:GrailsTrust` and starts no JVM, while the Lua server `grails` keeps working. `:GrailsTrust` adds the project's root to an allowlist in `stdpath('state')/grails/trusted.json` (stored as real paths, so a symlink to a trusted root is trusted too); `:GrailsUntrust` removes it. The client sends `initializationOptions.trusted` from that allowlist, whichever way the client was started.
 
-**JDK.** The server must run on the project's JDK (the one its Gradle build uses): it compiles with the project's Groovy, which reads the JDK's class files with its bundled ASM, so Groovy 2.5 (Grails 4) needs JDK 15 or older. The server's docs have [the table](https://github.com/vdassios/grails-language-server/blob/main/docs/editors.md#install). `grails_ls` runs `$JAVA_HOME/bin/java`, else `java` from `PATH`; start Neovim with the project's `JAVA_HOME` (SDKMAN's `sdkman_auto_env` sets it from `.sdkmanrc` on `cd`), or set the path:
+**JDK.** The server must run on the project's JDK (the one its Gradle build uses): it compiles with the project's Groovy, which reads the JDK's class files with its bundled ASM, so Groovy 2.5 (Grails 4) needs JDK 15 or older. The server's docs have [the table](https://github.com/vdassios/grails-language-server/blob/main/docs/editors.md#install). `grails_ls` picks the JDK for each project root when it starts there, so two projects in one session can run on different JDKs. The first of these wins:
+
+1. `vim.g.grails_ls.java`.
+2. `org.gradle.java.home` in the root's `gradle.properties`.
+3. `java=<id>` in the root's `.sdkmanrc`: SDKMAN's `$SDKMAN_DIR/candidates/java/<id>` (default `~/.sdkman`).
+4. `$JAVA_HOME/bin/java`.
+5. `java` from `PATH`.
+
+The project files (2 and 3) are read only once the root is trusted, because they name a program to run. A source that names no usable JDK (a `JAVA_HOME` without `bin/java`, an `.sdkmanrc` JDK that is not installed or an identifier that is not one) is warned about once and skipped. Before the first start on a `java`, the client runs `java -version` once, in the background; it does not start the server, and says why, when there is no JDK behind it (such as macOS's `/usr/bin/java` with no JDK installed) or it is older than Java 11.
 
 ```lua
 vim.g.grails_ls = {
-  java = '/path/to/jdk-11/bin/java', -- default: $JAVA_HOME/bin/java, else java
+  java = '/path/to/jdk-11/bin/java', -- default: the project's JDK, as above
   jar = '/path/to/grails-language-server-all.jar', -- default: the one :GrailsInstallServer downloads
 }
 ```

@@ -136,7 +136,7 @@ function T.root_dir_is_the_trusted_gradle_root_once_the_jar_exists()
   local function on_dir(root)
     roots[#roots + 1] = root
   end
-  local notes = with({ jar = vim.fn.tempname(), java = vim.v.progpath }, nil, function()
+  local notes = with({ jar = vim.fn.tempname(), java = '/no/such/java' }, nil, function()
     ls.root_dir(buf, on_dir)
   end)
   h.eq({}, roots)
@@ -145,8 +145,15 @@ function T.root_dir_is_the_trusted_gradle_root_once_the_jar_exists()
 
   local jar = vim.fn.tempname()
   vim.fn.writefile({}, jar)
-  with({ jar = jar, java = vim.v.progpath }, nil, function()
+  local java = vim.fn.tempname() .. '/bin/java'
+  vim.fn.mkdir(vim.fs.dirname(java), 'p')
+  vim.fn.writefile({ '#!/bin/sh', [[echo 'openjdk version "17.0.19"' >&2]] }, java)
+  vim.fn.setfperm(java, 'rwxr-xr-x')
+  with({ jar = jar, java = java }, nil, function()
     ls.root_dir(buf, on_dir)
+    vim.wait(2000, function()
+      return #roots > 0
+    end)
   end)
   trust.revoke(h.app)
   h.eq({ h.app }, roots)
