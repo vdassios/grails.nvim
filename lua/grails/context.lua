@@ -6,7 +6,6 @@ local M = {}
 --- @class grails.Context
 --- @field lang 'gsp'|'groovy'
 --- @field value? string the path or name under the cursor; nil when it is computed (`${}`, GString)
---- @field value_range? Range4 0-based byte range of the value
 --- GSP:
 --- @field tag? { ns?: string, name: string } `ns` is nil for a plain HTML tag
 --- @field attr? string attribute holding the value; nil on a `tmpl:` tag name
@@ -16,8 +15,6 @@ local M = {}
 --- @field named_arg? string
 --- @field args? table<string, string> the call's named arguments with plain string values
 --- @field property? string static property assigned the value (`layout`)
---- @field enclosing_class? string
---- @field enclosing_method? string method, or property assigned a closure
 
 --- Lowest named node at a 0-based byte position.
 local function node_at(root, row, col)
@@ -66,19 +63,17 @@ local function tag_info(doc, tag)
 end
 
 --- A layout `<meta name="layout" content="x">` on the cursor line, when the cursor is on it.
-local function meta_layout(line, row, col)
+local function meta_layout(line, col)
   for s, tag, e in line:gmatch '()(<meta%s[^>]*>)()' do
     if col >= s - 1 and col < e - 1 and tag:match '%sname%s*=%s*["\']layout["\']' then
-      local at, value = tag:match '%scontent%s*=%s*["\']()([^"\']*)'
+      local value = tag:match '%scontent%s*=%s*["\']([^"\']*)'
       if value then
-        local vs = s - 1 + at - 1
         return {
           lang = 'gsp',
           tag = { name = 'meta' },
           attr = 'content',
           attrs = { name = 'layout', content = value },
           value = value,
-          value_range = { row, vs, row, vs + #value },
         }
       end
     end
@@ -91,7 +86,7 @@ local function gsp_context(doc, root, row, col)
     return nil
   end
   if node:type() == 'content' then
-    return meta_layout(doc.lines[row + 1], row, col)
+    return meta_layout(doc.lines[row + 1], col)
   end
   -- Inside `${}` the cursor is on Groovy code, not on a path.
   if ancestor(node, { expression = true, groovy_value = true }) then
@@ -106,24 +101,17 @@ local function gsp_context(doc, root, row, col)
   if value_node then
     local attr = value_node:parent()
     local key = attr and attr:field('name')[1]
-    local value = plain_value(doc, value_node)
-    local sr, sc, er, ec = value_node:range()
-    if value_node:child_count() >= 2 then -- inside the quotes
-      sc, ec = sc + 1, ec - 1
-    end
     return {
       lang = 'gsp',
       tag = tag,
       attr = key and util.node_text(doc, key),
       attrs = attrs,
-      value = value,
-      value_range = { sr, sc, er, ec },
+      value = plain_value(doc, value_node),
     }
   end
   -- The name of a `tmpl:` tag is a template path.
   if tag.ns == 'tmpl' and ancestor(node, { tag_name = true, namespace = true }) then
-    local name = tag_node:field('name')[1]
-    return { lang = 'gsp', tag = tag, attrs = attrs, value = tag.name, value_range = name and { name:range() } }
+    return { lang = 'gsp', tag = tag, attrs = attrs, value = tag.name }
   end
 end
 
@@ -158,7 +146,7 @@ local function call_name(doc, call)
   end
 end
 
---- Name of the class, and of the method or closure property, around a node.
+--- Name of the class, and of the method or closure property, around a node (`:GrailsAlternate`'s action).
 --- @return string? class, string? method
 function M.enclosing(doc, node)
   local class, method
@@ -186,10 +174,9 @@ end
 --- structure: a quoted named argument of a call on the cursor line,
 --- `name(key: 'value', ...)` or `name key: 'value', ...`.
 --- @param line string
---- @param row integer
 --- @param col integer
 --- @return grails.Context?
-function M.scan_line(line, row, col)
+function M.scan_line(line, col)
   for s, quote, value, e in line:gmatch '()(["\'])(.-)%2()' do
     if col >= s - 1 and col < e - 1 then
       local prefix = line:sub(1, s - 1)
@@ -208,7 +195,6 @@ function M.scan_line(line, row, col)
         named_arg = key,
         args = args,
         value = (quote == "'" or not value:find('${', 1, true)) and value or nil,
-        value_range = { row, s, row, e - 2 },
       }
     end
   end
@@ -220,9 +206,6 @@ local function tree_context(doc, node)
     return nil
   end
   local ctx = { lang = 'groovy', value = string_value(doc, str) }
-  local sr, sc, er, ec = str:range()
-  ctx.value_range = { sr, sc + 1, er, ec - 1 }
-  ctx.enclosing_class, ctx.enclosing_method = M.enclosing(doc, str)
 
   local parent = str:parent()
   if parent and parent:type() == 'map_item' then
@@ -261,7 +244,7 @@ local function groovy_context(doc, root, row, col)
   end
   local ctx = tree_context(doc, node)
   if not ctx and ancestor(node, { ERROR = true }) then
-    ctx = M.scan_line(doc.lines[row + 1], row, col)
+    ctx = M.scan_line(doc.lines[row + 1], col)
   end
   return ctx
 end

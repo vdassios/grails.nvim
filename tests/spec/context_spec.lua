@@ -20,8 +20,6 @@ function T.gsp_attribute_value()
   h.eq({ ns = 'g', name = 'render' }, ctx.tag)
   h.eq('template', ctx.attr)
   h.eq('/book/row', ctx.value)
-  local row, col = h.pos(util.read(h.path(LIST)).lines, '/book/row')
-  h.eq({ row, col, row, col + #'/book/row' }, ctx.value_range)
 end
 
 function T.gsp_other_attributes()
@@ -66,15 +64,12 @@ function T.groovy_named_argument()
   h.eq('render', ctx.call)
   h.eq('view', ctx.named_arg)
   h.eq('/book/list', ctx.value)
-  h.eq('BookController', ctx.enclosing_class)
-  h.eq('index', ctx.enclosing_method)
 end
 
 function T.groovy_command_call_without_parentheses()
   local ctx = at(BOOKS, "view: 'show'", 8)
   h.eq('render', ctx.call)
   h.eq('show', ctx.value)
-  h.eq('show', ctx.enclosing_method)
 end
 
 function T.groovy_other_named_arguments()
@@ -82,7 +77,21 @@ function T.groovy_other_named_arguments()
   h.eq('redirect', ctx.call)
   h.eq('action', ctx.named_arg)
   h.eq({ controller = 'author', action = 'show' }, ctx.args)
-  h.eq('save', ctx.enclosing_method) -- a closure property
+end
+
+--- Class and method around the `offset`-th byte of `needle` in the controller fixture.
+local function enclosing(needle, offset)
+  local doc = assert(util.read(h.path(BOOKS)))
+  local row, col = h.pos(doc.lines, needle, offset)
+  local node = assert(util.parse(doc, 'groovy')):named_descendant_for_range(row, col, row, col)
+  return { context.enclosing(doc, node) }
+end
+
+-- :GrailsAlternate finds the action under the cursor with it; the context no longer carries these names.
+function T.enclosing_class_and_action()
+  h.eq({ 'BookController', 'index' }, enclosing('/book/list', 2))
+  h.eq({ 'BookController', 'show' }, enclosing("view: 'show'", 8))
+  h.eq({ 'BookController', 'save' }, enclosing("action: 'show', id", 9)) -- a closure property
 end
 
 function T.groovy_static_property()
@@ -105,7 +114,7 @@ end
 
 local function scan(line, needle, offset)
   local _, col = h.pos({ line }, needle, offset)
-  return context.scan_line(line, 7, col)
+  return context.scan_line(line, col)
 end
 
 function T.scan_line_call_with_parentheses()
@@ -114,8 +123,6 @@ function T.scan_line_call_with_parentheses()
   h.eq('render', ctx.call)
   h.eq('view', ctx.named_arg)
   h.eq('/book/list', ctx.value)
-  local _, col = h.pos({ line }, '/book/list')
-  h.eq({ 7, col, 7, col + #'/book/list' }, ctx.value_range)
 end
 
 function T.scan_line_command_call_second_argument()
