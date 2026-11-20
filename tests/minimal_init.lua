@@ -8,6 +8,8 @@ vim.opt.runtimepath:append(root .. '/after')
 vim.opt.runtimepath:append(vim.fn.stdpath 'data' .. '/site')
 vim.opt.swapfile = false
 vim.opt.shadafile = 'NONE'
+-- Keep the tests away from the user's state: the grails_ls allowlist (lua/grails/trust.lua) and the LSP log.
+vim.env.XDG_STATE_HOME = vim.fn.tempname()
 
 -- Build the `gsp` parser from this checkout.
 local so = vim.fn.tempname() .. '-gsp.so'
