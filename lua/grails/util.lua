@@ -33,7 +33,11 @@ function M.read(path)
   return { path = path, lines = vim.split(text, '\n', { plain = true }) }
 end
 
---- Syntax tree root of a document, or nil when the parser is missing.
+--- Parsers already reported missing (`lang` => true).
+--- @type table<string, true>
+M.missing_parsers = {}
+
+--- Syntax tree root of a document, or nil when the parser is missing (notified once per parser).
 --- A loaded buffer reuses its own parser only when its filetype maps to `lang`,
 --- so that a highlighter's parser is never replaced.
 --- @param doc grails.Doc
@@ -47,6 +51,12 @@ function M.parse(doc, lang)
     parser = vim.treesitter.get_string_parser(table.concat(doc.lines, '\n'), lang)
   end
   if not parser then
+    if not M.missing_parsers[lang] then
+      M.missing_parsers[lang] = true
+      local text = 'grails: no `%s` tree-sitter parser, so go to definition and :GrailsAlternate find nothing in %s code. '
+        .. 'Install it (:TSInstall %s); :checkhealth grails checks the rest.'
+      vim.notify(text:format(lang, lang == 'gsp' and 'GSP' or 'Groovy', lang), vim.log.levels.WARN)
+    end
     return nil
   end
   return parser:parse()[1]:root()

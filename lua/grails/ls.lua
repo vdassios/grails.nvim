@@ -132,13 +132,33 @@ function M.rpc(dispatchers, config)
   return vim.lsp.rpc.start(M.cmd(config.root_dir), dispatchers, extra)
 end
 
+--- What the result of `java -version` says about `java`: its major version (nil when unreadable), and why it cannot
+--- run the server, if it cannot: no JDK behind the binary (such as the macOS `/usr/bin/java` stub) or a Java older
+--- than 11.
+--- @param java string
+--- @param res vim.SystemCompleted
+--- @return integer? version
+--- @return string? problem
+function M.java_version(java, res)
+  local out = vim.trim((res.stderr or '') .. '\n' .. (res.stdout or ''))
+  if res.code ~= 0 then
+    return nil, ('`%s` found no usable JDK: %s. Install JDK 11 or later, or set vim.g.grails_ls.java.'):format(java, out:match '[^\n]*')
+  end
+  local major, minor = out:match 'version "(%d+)%.?(%d*)'
+  local version = tonumber(major == '1' and minor or major)
+  if version and version < 11 then
+    return version, ("`%s` is Java %d; the server needs Java 11 or later. Set vim.g.grails_ls.java or the project's JDK."):format(java, version)
+  end
+  return version
+end
+
 --- Binaries whose `java -version` passed (=> true), or are being checked (=> callbacks waiting for the result).
 --- @type table<string, true|fun(ok: boolean)[]>
 local checked = {}
 
---- Runs `java -version` once per binary, asynchronously, and calls `done(ok)`. Not ok, and warned once: no JDK
---- behind the binary (such as the macOS `/usr/bin/java` stub) or a Java older than 11. A version it cannot read
---- passes. Only a pass is remembered, so a JDK installed later is picked up.
+--- Runs `java -version` once per binary, asynchronously, and calls `done(ok)`. Not ok, and warned once, when
+--- `java_version` names a problem. A version it cannot read passes. Only a pass is remembered, so a JDK installed
+--- later is picked up.
 --- @param java string
 --- @param done fun(ok: boolean)
 function M.check_java(java, done)
@@ -159,18 +179,11 @@ function M.check_java(java, done)
   end
   local started, err = pcall(vim.system, { java, '-version' }, { text = true }, function(res)
     vim.schedule(function()
-      local out = vim.trim((res.stderr or '') .. '\n' .. (res.stdout or ''))
-      if res.code ~= 0 then
-        warn('`%s` found no usable JDK: %s. Install JDK 11 or later, or set vim.g.grails_ls.java.', java, out:match '[^\n]*')
-        return finish(false)
+      local _, problem = M.java_version(java, res)
+      if problem then
+        warn('%s', problem)
       end
-      local major, minor = out:match 'version "(%d+)%.?(%d*)'
-      local version = tonumber(major == '1' and minor or major)
-      if version and version < 11 then
-        warn("`%s` is Java %d; the server needs Java 11 or later. Set vim.g.grails_ls.java or the project's JDK.", java, version)
-        return finish(false)
-      end
-      finish(true)
+      finish(not problem)
     end)
   end)
   if not started then
