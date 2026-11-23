@@ -7,7 +7,7 @@ The tree-sitter grammar for GSP lives in `tree-sitter-gsp/`; its queries in `que
 - Highlights, folds and injections: HTML in the page text, Groovy in `${ }`, `<% %>`, `%{ }%`, `<%= %>`, `<%! %>`, `!{ }!` and in `[...]` attribute values (`model="[book: book]"`).
 - GSP is recognised everywhere, including inside HTML attribute values and `<script>` and `<style>` bodies.
 - `commentstring` is `<%-- %s --%>`.
-- `K` shows LSP hover when a server attached to the buffer answers it, and otherwise says there is none. It never falls back to `:Man`, so `K` on `<head>` does not open `man head`. It is not mapped when `K` is already mapped, or with `vim.g.grails_default_mappings = false`.
+- `K` shows LSP hover when a server attached to the buffer answers it, and otherwise says there is none. It never falls back to `:Man`, so `K` on `<head>` does not open `man head`. It is not mapped when `K` or a key starting with it is already mapped, or with `vim.g.grails_default_mappings = false`.
 
 ## Without nvim-treesitter
 

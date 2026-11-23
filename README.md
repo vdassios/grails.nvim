@@ -88,7 +88,7 @@ If you also use [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig) and i
 
 ### Keymaps
 
-The default keys are set only in Groovy and GSP buffers inside a Grails project, as buffer-local mappings. They start with `<localleader>`, which is `\` unless you set `vim.g.maplocalleader`; Neovim maps nothing under it. A default is not set when its key is already mapped (by you or by another plugin), so grails.nvim never replaces a mapping. The same holds for `K` in GSP buffers, which grails.nvim maps to LSP hover so that it never opens `:Man` ([more](docs/grammar.md#gsp-language)).
+The default keys are set only in Groovy and GSP buffers inside a Grails project, as buffer-local mappings. They start with `<localleader>`, which is `\` unless you set `vim.g.maplocalleader`; Neovim maps nothing under it. A default is not set when its key, or a longer key starting with it, is already mapped (by you or by another plugin), so grails.nvim never replaces a mapping. In every GSP buffer, inside a Grails project or not, grails.nvim also maps `K` to LSP hover (or a message when no attached server answers hover) so that it never opens `:Man`; under the same rule, it is not set when `K` or a key starting with it is already mapped ([more](docs/grammar.md#gsp-language)).
 
 Each command also has a `<Plug>` mapping: `<Plug>(grails-alternate)`, `<Plug>(grails-reindex)`, `<Plug>(grails-install-server)`, `<Plug>(grails-reload-project)` and `<Plug>(grails-download-sources)`. Map your own key to one, and grails.nvim skips the default key for that command:
 
