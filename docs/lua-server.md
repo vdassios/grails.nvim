@@ -1,6 +1,6 @@
 # Lua navigation server
 
-`lsp/grails.lua` starts a small in-process language server written in Lua (`grails`) for Grails navigation, which needs no JDK, nothing to install and no build. It applies Grails' naming conventions to the syntax tree. Once `grails_ls` has the project ready in a buffer, the Lua server leaves definition to it there.
+`lsp/grails.lua` starts a small in-process language server written in Lua (`grails`) for Grails navigation, which needs no JDK, nothing to install and no build. It applies Grails' naming conventions to the syntax tree. Once `grails_ls` has the project ready in a buffer, the Lua server leaves definition to it there until `grails_ls` stops, reloads included (`grails_ls` answers from its last model while it resolves again, and after a reload that fails).
 
 ## Go to definition
 

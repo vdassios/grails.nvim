@@ -304,6 +304,12 @@ end
 --- @type table<integer, string>
 M.states = {}
 
+--- Client ids that have been `ready`. Such a client answers from its project model until it stops: a reload
+--- (`grails/reloadProject`, a build file change) goes through `resolving` and `indexing` again, and the server
+--- keeps the model it has until a resolution succeeds, also when that resolution fails.
+--- @type table<integer, true>
+M.answering = {}
+
 local TOKEN = 'grails/status'
 local BUSY = { resolving = 'resolving the project', indexing = 'indexing' }
 
@@ -314,6 +320,9 @@ local BUSY = { resolving = 'resolving the project', indexing = 'indexing' }
 function M.on_status(_, params, ctx)
   local state, previous = params.state, M.states[ctx.client_id]
   M.states[ctx.client_id] = state
+  if state == 'ready' then
+    M.answering[ctx.client_id] = true
+  end
   local progress = vim.lsp.handlers['$/progress']
   if BUSY[state] then
     local kind = BUSY[previous] and 'report' or 'begin'
@@ -330,12 +339,14 @@ end
 --- @param client_id integer
 function M.on_exit(_, _, client_id)
   M.states[client_id] = nil
+  M.answering[client_id] = nil
 end
 
---- Whether a `grails_ls` client attached to `bufnr` has the project ready.
+--- Whether a `grails_ls` client attached to `bufnr` answers from a project model: it has been `ready`, and a
+--- reload since does not change that (`M.answering`).
 function M.ready(bufnr)
   for _, client in ipairs(vim.lsp.get_clients { bufnr = bufnr, name = M.name }) do
-    if M.states[client.id] == 'ready' then
+    if M.answering[client.id] then
       return true
     end
   end

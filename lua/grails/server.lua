@@ -24,7 +24,7 @@ function requests.shutdown()
 end
 
 requests['textDocument/definition'] = function(params)
-  -- grails_ls answers the same references once its project is ready: two answers would make every jump a choice
+  -- grails_ls answers the same references once its project has been ready: two answers would make every jump a choice
   local buf = require('grails.util').find_buf(vim.uri_to_fname(params.textDocument.uri))
   if buf and require('grails.ls').ready(buf) then
     return {}

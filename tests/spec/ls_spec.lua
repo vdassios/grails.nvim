@@ -189,8 +189,10 @@ function T.a_stopped_client_leaves_no_status()
   server.status 'ready'
   vim.wait(50)
   h.eq('ready', ls.states[client.id])
+  h.eq(true, ls.answering[client.id])
   stop_all()
   h.eq(nil, ls.states[client.id])
+  h.eq(nil, ls.answering[client.id])
 end
 
 function T.lua_server_leaves_definition_to_a_ready_grails_ls()
@@ -212,6 +214,54 @@ function T.lua_server_leaves_definition_to_a_ready_grails_ls()
   h.eq(0, count())
   stop_all()
   h.eq(1, count(), 'answers again once grails_ls is gone')
+end
+
+--- Starts the Lua server and a fake grails_ls on a page, sends it `statuses` and returns, after each, how many
+--- definition results both servers give together, plus the notifications. The fake answers definition from the
+--- status `ready` on, and keeps answering when a later resolution fails: the server keeps its last model
+--- (ProjectService.resolve replaces it only when a resolution succeeds).
+local function definition_through(statuses)
+  local buf = h.edit 'web/grails-app/views/book/list.gsp'
+  h.client(buf)
+  local row, col = h.pos(vim.api.nvim_buf_get_lines(buf, 0, -1, false), '/book/row', 1)
+  local params = { textDocument = { uri = vim.uri_from_bufnr(buf) }, position = { line = row, character = col } }
+  local answers = {}
+  local server = fake_server(answers)
+  start(server, buf)
+  local counts = {}
+  local notes = with(nil, nil, function()
+    for _, state in ipairs(statuses) do
+      server.status(state)
+      vim.wait(50)
+      if state == 'ready' then
+        local at = { line = 0, character = 0 }
+        answers['textDocument/definition'] = { { uri = params.textDocument.uri, range = { start = at, ['end'] = at } } }
+      end
+      local n = 0
+      for _, res in pairs(vim.lsp.buf_request_sync(buf, 'textDocument/definition', params, 1000) or {}) do
+        n = n + #(res.result or {})
+      end
+      counts[#counts + 1] = state .. ':' .. n
+    end
+  end)
+  stop_all()
+  return counts, notes
+end
+
+function T.definition_has_one_result_through_a_reload()
+  local statuses = { 'resolving', 'indexing', 'ready', 'resolving', 'indexing', 'ready', 'resolving', 'failed' }
+  h.eq(
+    vim.tbl_map(function(state)
+      return state .. ':1'
+    end, statuses),
+    (definition_through(statuses))
+  )
+end
+
+function T.a_failed_first_resolution_leaves_definition_to_the_lua_server()
+  local counts, notes = definition_through { 'resolving', 'failed' }
+  h.eq({ 'resolving:1', 'failed:1' }, counts)
+  h.eq(1, #notes)
 end
 
 function T.commands_send_the_server_requests()
