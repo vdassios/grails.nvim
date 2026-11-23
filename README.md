@@ -48,6 +48,8 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 },
 ```
 
+**After updating grails.nvim, rebuild the `gsp` parser with `:TSInstall! gsp`.** nvim-treesitter builds it from the plugin's checkout, which has no revision to compare, so `:TSUpdate` reports it up to date and keeps the old parser. Without nvim-treesitter, run the [`tree-sitter build` command](docs/grammar.md#without-nvim-treesitter) again.
+
 `vim.lsp.enable { 'grails', 'grails_ls' }` turns on both language servers that come with the plugin; you need no other LSP setup. To use only one, enable only that name. Before you use `grails_ls` for the first time, run `:GrailsInstallServer` to download it, then `:GrailsTrust` once in each Grails project you want it to run in (see [Trust](#configuration)).
 
 nvim-treesitter's `main` branch does not start highlighting by itself. If your config does not already do this, start it for GSP:

@@ -17,7 +17,7 @@ Build the parser into a `parser/` directory on the runtimepath. The queries in `
 tree-sitter build -o ~/.local/share/nvim/site/parser/gsp.so /path/to/grails.nvim/tree-sitter-gsp
 ```
 
-The `groovy` and `html` parsers are needed as well.
+The `groovy` and `html` parsers are needed as well. Run the command again after each update of grails.nvim.
 
 ## Known limits
 
