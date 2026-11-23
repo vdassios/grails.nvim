@@ -4,6 +4,7 @@
 --   GRAILS_LS_FIXTURE  <server>/fixtures/grails4
 -- The server runs on the `java` the plugin picks (`$JAVA_HOME`, else `java` on `PATH`), which must be a JDK 11 for
 -- the fixture's Gradle 6.9. The first run resolves the fixture with Gradle, which can download for minutes.
+local cases = require 'definition_cases'
 local h = require 'helpers'
 local ls = require 'grails.ls'
 local trust = require 'grails.trust'
@@ -102,6 +103,94 @@ local function wait_ready(client, notes)
     return state == 'ready'
   end, 50)
   assert(ready, ('not ready after %d ms, state %s'):format(RESOLVE_MS, tostring(ls.states[client.id])))
+end
+
+--- `path` below the fixture root, real paths on both sides (the server answers with real paths).
+local function below_fixture(path)
+  return vim.fs.relpath(trust.real(fixture), trust.real(path)) or path
+end
+
+--- What a case expects: `path:line` (0-based) of its target, the line the first holding the target's text.
+local function expected(case)
+  local path, text = case.target[1], case.target[2]
+  if not text then
+    return path .. ':0'
+  end
+  for i, line in ipairs(vim.fn.readfile(fixture .. '/' .. path)) do
+    if line:find(text, 1, true) then
+      return path .. ':' .. (i - 1)
+    end
+  end
+  error(('%s: no line holds %q in %s'):format(case.kind, text, path))
+end
+
+--- The definition targets, as `path:line`, the client named `name` gives at a case's position.
+local function define(case, name)
+  vim.cmd.edit(vim.fn.fnameescape(fixture .. '/' .. case.file))
+  local buf = vim.api.nvim_get_current_buf()
+  local client
+  wait(REQUEST_MS, function()
+    client = vim.lsp.get_clients({ bufnr = buf, name = name })[1]
+    return client ~= nil and client.initialized
+  end, name .. ' attached to ' .. case.file)
+  local row, col = h.pos(vim.api.nvim_buf_get_lines(buf, 0, -1, false), case.text, case.at)
+  local params = { textDocument = { uri = vim.uri_from_bufnr(buf) }, position = { line = row, character = col } }
+  local res, err = client:request_sync('textDocument/definition', params, REQUEST_MS, buf)
+  assert(res and not res.err, ('%s: definition from %s failed: %s'):format(case.kind, name, vim.inspect(res and res.err or err)))
+  local result = res.result or {}
+  if result.uri or result.targetUri then
+    result = { result }
+  end
+  return vim.tbl_map(function(loc)
+    local range = loc.range or loc.targetSelectionRange
+    return below_fixture(vim.uri_to_fname(loc.uri or loc.targetUri)) .. ':' .. range.start.line
+  end, result)
+end
+
+--- The mismatches of `found` (targets by case index) against the cases' targets, for the servers marked `side`.
+local function mismatches(found, side, label)
+  local wrong = {}
+  for i, case in ipairs(cases) do
+    local want = (case.servers == 'both' or case.servers == side) and { expected(case) } or {}
+    if not vim.deep_equal(want, found[i]) then
+      wrong[#wrong + 1] = ('%s [%s] %s: expected %s, got %s'):format(label, case.servers, case.kind, vim.inspect(want), vim.inspect(found[i]))
+    end
+  end
+  return wrong
+end
+
+function T.definition_cases_give_one_target_before_and_after_ready()
+  with_server(function(notes)
+    -- The fixture is not trusted yet, so grails_ls does not start: the Lua server answers alone.
+    local lua, java, handed = {}, {}, {}
+    vim.lsp.enable 'grails'
+    for i, case in ipairs(cases) do
+      lua[i] = define(case, 'grails')
+    end
+    h.eq(0, #vim.lsp.get_clients { name = ls.name }, 'grails_ls clients before :GrailsTrust')
+
+    vim.cmd 'GrailsTrust'
+    local client
+    wait(REQUEST_MS, function()
+      client = vim.lsp.get_clients({ bufnr = 0, name = ls.name })[1]
+      return client ~= nil and client.initialized
+    end, 'grails_ls attached after :GrailsTrust')
+    wait_ready(client, notes)
+    for i, case in ipairs(cases) do
+      java[i] = define(case, ls.name)
+      -- grails_ls is ready in the buffer: the Lua server is silent there.
+      handed[i] = define(case, 'grails')
+    end
+
+    local wrong = mismatches(lua, 'lua', 'Lua server')
+    vim.list_extend(wrong, mismatches(java, 'java', 'grails_ls'))
+    for i, case in ipairs(cases) do
+      if #handed[i] > 0 then
+        wrong[#wrong + 1] = ('Lua server after ready, %s: expected nothing, got %s'):format(case.kind, vim.inspect(handed[i]))
+      end
+    end
+    assert(#wrong == 0, table.concat(wrong, '\n'))
+  end)
 end
 
 function T.real_server_on_the_grails4_fixture()

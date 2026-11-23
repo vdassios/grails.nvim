@@ -15,6 +15,10 @@
 
 Lookups search every module of a multi-module build, the current one first, because views and controllers often live in different modules. A module is a directory with `grails-app/`, the root or up to three levels below it. A directory with its own `settings.gradle` or `settings.gradle.kts` is a separate build: its modules belong to it, not to the build around it. A target that does not exist, or a value computed with `${}` or a GString, gives no result. The server keeps no index: each lookup reads the directories and files it needs, so files created, moved or deleted outside Neovim (a `git checkout`) are followed without a command, and an open buffer's unsaved text is used over the file on disk.
 
+## Scope
+
+The Lua server's scope is frozen: it covers exactly the cases marked `both` or `lua` in [`tests/definition_cases.lua`](../tests/definition_cases.lua), and grails-language-server covers every `both` case. The integration spec runs that list against the Lua server alone, then against `grails_ls` once it is ready, so the jumps the Lua server offers keep working after it goes silent. The only `lua` case is the `controller` attribute of a tag outside the `g:` namespace (`<sec:link controller="book">`). Cases only `grails_ls` resolves (`respond`, `UrlMappings`, `static allowedMethods`) are `java`. A new kind of jump is added to the list first; the Lua server takes it only if `grails_ls` does too.
+
 ## Known limits
 
 These are the Lua server's; grails-language-server has its own list in [its docs](https://github.com/vdassios/grails-language-server/blob/main/docs/how-it-works.md#known-limits).
