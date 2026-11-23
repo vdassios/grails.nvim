@@ -587,4 +587,61 @@ function T.an_older_server_is_warned_about_once()
   h.eq('function', type(vim.lsp.config.grails_ls.on_init))
 end
 
+function T.quitting_neovim_does_not_wait_for_a_server_that_ignores_shutdown()
+  local dir = vim.fn.tempname()
+  vim.fn.mkdir(dir, 'p')
+  local log, marker, init = dir .. '/server.log', dir .. '/quit-at', dir .. '/init.lua'
+  -- A Neovim of its own (the runner cannot quit itself), with this plugin's grails_ls config and the stub as `cmd`.
+  vim.fn.writefile({
+    ('local root, stub, log, marker = %q, %q, %q, %q'):format(h.root, h.root .. '/tests/stubborn_server.lua', log, marker),
+    'vim.opt.runtimepath:prepend(root)',
+    "vim.opt.runtimepath:append(root .. '/after')",
+    'vim.opt.swapfile = false',
+    "vim.opt.shadafile = 'NONE'",
+    "local ls = require 'grails.ls'",
+    -- nested: :qall! from a callback that is not would skip VimLeavePre, where Neovim stops its clients
+    "vim.api.nvim_create_autocmd('VimEnter', { nested = true, callback = function()",
+    "  local cmd = { vim.v.progpath, '-l', stub, log, ls.min_server_version }",
+    "  local config = vim.tbl_extend('force', vim.lsp.config.grails_ls, { cmd = cmd, root_dir = root .. '/tests/fixtures/app' })",
+    '  local client = vim.lsp.get_client_by_id(assert(vim.lsp.start(config, { bufnr = 0 })))',
+    '  if not vim.wait(5000, function() return client.initialized end, 20) then',
+    "    io.stderr:write 'the stub did not initialize\\n'",
+    "    vim.cmd 'cquit 2'",
+    '  end',
+    '  vim.fn.writefile({ tostring(vim.uv.hrtime()) }, marker)',
+    "  vim.cmd 'qall!'",
+    'end })',
+  }, init)
+  local result, exited_at
+  vim.system({ vim.v.progpath, '--headless', '-u', init, h.path 'core/grails-app/controllers/bookshop/BookController.groovy' }, { text = true }, function(res)
+    exited_at, result = vim.uv.hrtime(), res
+  end)
+  local function stub_pid()
+    return vim.uv.fs_stat(log) and tonumber(vim.fn.readfile(log)[1])
+  end
+  local ok, err = pcall(function()
+    assert(
+      vim.wait(10000, function()
+        return result ~= nil
+      end, 20),
+      'the child Neovim did not exit'
+    )
+    assert(result.code == 0, ('child Neovim exited with %d: %s'):format(result.code, result.stderr))
+    local quit_ms = (exited_at - tonumber(vim.fn.readfile(marker)[1])) / 1e6
+    assert(quit_ms < 1000, ('Neovim took %d ms to quit'):format(quit_ms))
+    -- The stub got `shutdown`, never answered it, and still runs: Neovim did not wait for it.
+    assert(
+      vim.wait(2000, function()
+        return vim.list_contains(vim.fn.readfile(log), 'shutdown')
+      end, 20),
+      'the stub got no shutdown request: ' .. table.concat(vim.fn.readfile(log), ' ')
+    )
+    h.eq(0, vim.uv.kill(stub_pid(), 0), 'the stub still runs')
+  end)
+  if stub_pid() then
+    vim.uv.kill(stub_pid(), 'sigkill')
+  end
+  assert(ok, err)
+end
+
 return T
