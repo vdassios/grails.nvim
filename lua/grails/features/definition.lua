@@ -160,7 +160,9 @@ end
 --- @return lsp.Location[]
 local function resolve_gsp(req, ctx)
   local tag, attr, value = ctx.tag, ctx.attr, ctx.value
-  local base = project.view_dir(req.path)
+  -- Grails resolves relative names against the controller rendering the page: views/<controller>/, also from a page
+  -- in a directory below it. A page directly in views/ has no known controller, so only absolute names resolve.
+  local base = req.controller
   if tag.ns == 'tmpl' then
     return attr == nil and template(req, value, base) or {}
   end

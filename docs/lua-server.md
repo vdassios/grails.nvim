@@ -6,12 +6,12 @@
 
 | Under the cursor | Goes to |
 |---|---|
-| `<g:render template="...">`, `render(template: ...)`, `<tmpl:name/>` | `/a/b` opens `views/a/_b.gsp`. `b` opens `_b.gsp` beside the current view, or `views/<controller>/_b.gsp` from a controller. A `contextPath` attribute is a prefix. `<tmpl:/a/b/>` is `/a/b`. |
-| `render(view: ...)`, `view` attribute of a `g:` tag (`g:include`) | `/a/b` opens `views/a/b.gsp`. `b` opens `views/<controller>/b.gsp`. `.gsp`, then `.jsp`, then `.gson`. |
+| `<g:render template="...">`, `render(template: ...)`, `<tmpl:name/>` | `/a/b` opens `views/a/_b.gsp`. `b` opens `views/<controller>/_b.gsp`: from a controller, its own views; from a view, the view's first directory below `views/` (so `views/book/part/x.gsp` uses `views/book/`), as Grails does. A view directly in `views/` resolves only `/a/b`. A `contextPath` attribute is a prefix. `<tmpl:/a/b/>` is `/a/b`. |
+| `render(view: ...)`, `view` attribute of a `g:` tag (`g:include`) | `/a/b` opens `views/a/b.gsp`. `b` opens `views/<controller>/b.gsp`, the controller found as for templates. `.gsp`, then `.jsp`, then `.gson`. |
 | `<meta name="layout" content="x">`, `<g:applyLayout name="x">`, `static layout = 'x'` | `views/layouts/x.gsp` |
 | `src` or `href` of `asset:stylesheet`, `asset:javascript`, `asset:image`, `asset:assetPath`, `asset:link` | The file under any `grails-app/assets/*/` directory. Without an exact match: `.css .scss .sass .less` for stylesheets, `.js .es6 .ts .coffee` for scripts. |
 | `controller` attribute of a GSP tag; `controller:` of `redirect`, `chain`, `forward`, `createLink`, `g.link` | The controller class |
-| `action` in the same places | The action in the named controller, or in the current one. In a view, that is the controller named after the view's directory. An action is a method that is not private, protected or static, or a property assigned a closure. |
+| `action` in the same places | The action in the named controller, or in the current one. In a view, that is the controller named after the view's first directory below `views/`. An action is a method that is not private, protected or static, or a property assigned a closure. |
 
 Lookups search every module of a multi-module build, the current one first, because views and controllers often live in different modules. A module is a directory with `grails-app/`, the root or up to three levels below it. A directory with its own `settings.gradle` or `settings.gradle.kts` is a separate build: its modules belong to it, not to the build around it. A target that does not exist, or a value computed with `${}` or a GString, gives no result. The server keeps no index: each lookup reads the directories and files it needs, so files created, moved or deleted outside Neovim (a `git checkout`) are followed without a command, and an open buffer's unsaved text is used over the file on disk.
 

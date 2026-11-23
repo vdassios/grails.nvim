@@ -136,8 +136,48 @@ local function drop_project(dir)
       client:stop(true)
     end
   end
-  vim.cmd.bwipeout { dir .. '/grails-app/views/book/index.gsp', bang = true }
+  local index = vim.fn.bufnr(dir .. '/grails-app/views/book/index.gsp')
+  if index > 0 then
+    vim.cmd.bwipeout { index, bang = true }
+  end
   vim.fn.delete(dir, 'rf')
+end
+
+--- Definition results, as `path:line` relative to `dir`, for the first `needle` (plus `offset`) in the scratch project's file `rel`.
+local function define_in(dir, rel, needle, offset)
+  local buf = vim.fn.bufadd(dir .. '/' .. rel)
+  vim.cmd.buffer(buf)
+  local row, col = h.pos(vim.api.nvim_buf_get_lines(buf, 0, -1, false), needle, offset)
+  local res = h.client(buf):request_sync('textDocument/definition', {
+    textDocument = { uri = vim.uri_from_bufnr(buf) },
+    position = { line = row, character = col },
+  }, 2000, buf)
+  assert(res and not res.err, vim.inspect(res))
+  vim.cmd.bwipeout { buf, bang = true }
+  return vim.tbl_map(function(loc)
+    return vim.fs.relpath(dir, vim.uri_to_fname(loc.uri)) .. ':' .. loc.range.start.line
+  end, res.result)
+end
+
+-- Grails resolves a page's relative names against the controller rendering it, whose views are views/<controller>/.
+function T.relative_names_in_a_nested_page_start_from_the_controllers_views()
+  local dir = scratch_project()
+  local ok, err = pcall(function()
+    vim.fn.mkdir(dir .. '/grails-app/views/book/part', 'p')
+    vim.fn.writefile({ '<p/>' }, dir .. '/grails-app/views/book/_row.gsp')
+    vim.fn.writefile({ '<p/>' }, dir .. '/grails-app/views/book/part/_row.gsp')
+    vim.fn.writefile({ '<p/>' }, dir .. '/grails-app/views/book/show.gsp')
+    vim.fn.writefile({ '<g:render template="row"/>', '<g:include view="show"/>' }, dir .. '/grails-app/views/book/part/shelf.gsp')
+    vim.fn.writefile({ '<p/>' }, dir .. '/grails-app/views/_row.gsp')
+    vim.fn.writefile({ '<g:render template="row"/>' }, dir .. '/grails-app/views/top.gsp')
+    local nested = 'grails-app/views/book/part/shelf.gsp'
+    h.eq({ 'grails-app/views/book/_row.gsp:0' }, define_in(dir, nested, 'row', 1))
+    h.eq({ 'grails-app/views/book/show.gsp:0' }, define_in(dir, nested, 'show', 1))
+    -- Directly in views/, no controller is known.
+    h.eq({}, define_in(dir, 'grails-app/views/top.gsp', 'row', 1))
+  end)
+  drop_project(dir)
+  assert(ok, err)
 end
 
 function T.files_deleted_or_moved_outside_neovim_are_followed()
