@@ -90,8 +90,60 @@ local function asset(req, tag, value)
   return {}
 end
 
---- The class declaration of an artefact and its member `member`, from its syntax tree.
---- An action is a method that is not private, protected or static, or a property assigned a closure.
+--- The name node of `m` if it declares an action: a method that is not private, protected or static, or a property
+--- assigned a closure.
+local function action_name(doc, m)
+  if m:type() == 'function_definition' then
+    for _, child in ipairs(m:named_children()) do
+      local text = (child:type() == 'access_modifier' or child:type() == 'modifier') and util.node_text(doc, child)
+      if text == 'private' or text == 'protected' or text == 'static' then
+        return nil
+      end
+    end
+    return m:field('function')[1]
+  elseif m:type() == 'declaration' then
+    local value = m:field('value')[1]
+    return value and value:type() == 'closure' and m:field('name')[1] or nil
+  end
+end
+
+--- The class name and member `member` in a file whose class does not parse as one (an unclosed brace, an
+--- unfinished import or annotation while typing; not always an error node): the first identifier `class` outside the package and imports, and the first
+--- action named `member` after it that is not inside a method.
+local function find_in_broken(doc, root, class, member)
+  local name, found
+  local function walk(node)
+    for _, n in ipairs(node:named_children()) do
+      local t = n:type()
+      if not name then
+        if t == 'identifier' and util.node_text(doc, n) == class then
+          name = n
+          if not member then
+            return
+          end
+        elseif t ~= 'groovy_package' and t ~= 'groovy_import' then
+          walk(n)
+        end
+      else
+        local mname = action_name(doc, n)
+        if mname and util.node_text(doc, mname) == member then
+          found = mname
+          return
+        end
+        if t ~= 'function_definition' then
+          walk(n)
+        end
+      end
+      if found or (name and not member) then
+        return
+      end
+    end
+  end
+  walk(root)
+  return name, found
+end
+
+--- The class declaration of an artefact and its member `member` (an action), from its syntax tree.
 --- @return grails.Doc?, TSNode? class_name, TSNode? member_name
 function M.find_in_class(path, class, member)
   local doc = util.read(path)
@@ -107,18 +159,7 @@ function M.find_in_class(path, class, member)
         return doc, name
       end
       for _, m in ipairs(body:named_children()) do
-        local mname
-        if m:type() == 'function_definition' then
-          local hidden = false
-          for _, child in ipairs(m:named_children()) do
-            local text = (child:type() == 'access_modifier' or child:type() == 'modifier') and util.node_text(doc, child)
-            hidden = hidden or text == 'private' or text == 'protected' or text == 'static'
-          end
-          mname = not hidden and m:field('function')[1]
-        elseif m:type() == 'declaration' then
-          local value = m:field('value')[1]
-          mname = value and value:type() == 'closure' and m:field('name')[1]
-        end
+        local mname = action_name(doc, m)
         if mname and util.node_text(doc, mname) == member then
           return doc, name, mname
         end
@@ -126,7 +167,7 @@ function M.find_in_class(path, class, member)
       return doc, name
     end
   end
-  return doc
+  return doc, find_in_broken(doc, root, class, member)
 end
 
 local function controller(req, name)

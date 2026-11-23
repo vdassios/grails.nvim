@@ -208,4 +208,28 @@ function T.an_unreadable_target_gives_no_location()
   assert(ok, err)
 end
 
+function T.an_action_in_a_controller_that_parses_with_errors_is_found()
+  local dir = scratch_project()
+  local ok, err = pcall(function()
+    local path = dir .. '/grails-app/controllers/shop/BookController.groovy'
+    vim.fn.writefile({ '<g:link controller="book" action="show">Book</g:link>' }, dir .. '/grails-app/views/book/index.gsp')
+    -- Shapes in which the class itself does not parse: an unclosed method body, an unfinished import, an
+    -- unfinished annotation.
+    local broken = {
+      { 'package shop', '', 'class BookController {', '  def show() {}', '  def edit() {', '}' },
+      { 'package shop', 'import a.b.', 'class BookController {', '  def show() {}', '}' },
+      { 'package shop', '@Secured(', 'class BookController {', '  def show() {}', '}' },
+    }
+    for i, lines in ipairs(broken) do
+      vim.fn.writefile(lines, path)
+      h.eq({ 'grails-app/controllers/shop/BookController.groovy:3' }, define_in(dir, 'grails-app/views/book/index.gsp', 'show', 1), 'shape ' .. i)
+    end
+    -- A method's local closure is no action.
+    vim.fn.writefile({ 'package shop', 'import a.b.', 'class BookController {', '  def index() {', '    def show = {}', '  }', '}' }, path)
+    h.eq({}, define_in(dir, 'grails-app/views/book/index.gsp', 'show', 1), 'local closure')
+  end)
+  drop_project(dir)
+  assert(ok, err)
+end
+
 return T
