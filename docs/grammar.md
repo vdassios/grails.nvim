@@ -24,6 +24,7 @@ The `groovy` and `html` parsers are needed as well. Run the command again after 
 - **Strings inside `${ }`.** The grammar skips a Groovy string inside `${ }` only when it is on one line, so a `}` in it does not end the expression. A string that spans lines (`${ "a` with `b" }` on the next line) is a parse error, and so is a `'` or `"` inside a slashy string (`${ x ==~ /it's/ }`). A `}` inside a slashy string ends the expression early.
 - **Nesting limits.** `${ }` balances braces eight levels deep; a ninth level is a parse error. A `[...]` attribute value balances brackets four levels deep; at five levels the whole value is plain text, without the Groovy injection.
 - **`}` before `}%` or `}!`.** In `%{ x.each { y }}%` the closer takes the whole run of `}`, so the Groovy injection does not see the closure's last `}`.
+- **No fold for a tag's body.** GSP tags are not paired in the tree (an open tag and its close tag are separate nodes), so a fold covers one tag that spans lines, a comment, a scriptlet or a declaration, never what lies between `<g:if>` and `</g:if>`. HTML elements fold through the html injection.
 - **No `indents.scm` for GSP.** Indentation comes from the html injection.
 
 ## Checked against public code

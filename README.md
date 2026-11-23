@@ -6,7 +6,7 @@ Grails support for Neovim: a tree-sitter grammar for GSP (Groovy Server Pages), 
 
 ## Features
 
-- **GSP grammar**: highlights, folds and injections, HTML in the page text and Groovy in `${ }`, scriptlets and attribute values. [More](docs/grammar.md)
+- **GSP grammar**: highlights, folds and injections, HTML in the page text and Groovy in `${ }`, scriptlets and attribute values. GSP tags are not paired in the tree, so a fold covers one multi-line tag (or comment, scriptlet), never a tag's body: `<g:if>` ... `</g:if>` does not fold. [More](docs/grammar.md)
 - **grails-language-server client** (`grails_ls`): Groovy and GSP diagnostics, completion, hover, definition and signature help with the project's own Groovy and Grails, GORM, and Grails conventions. `:GrailsInstallServer` downloads it.
 - **Lua navigation server** (`grails`): go to definition for views, templates, layouts, assets, controllers and actions, the moment a file opens and with no JDK. See [why two servers](#two-language-servers). [More](docs/lua-server.md)
 - **`:GrailsAlternate`**: from a controller action to its view and back, and between artefacts of the same name.
