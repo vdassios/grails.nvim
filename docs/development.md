@@ -27,4 +27,4 @@ JAVA_HOME=<JDK 11> \
 nvim --headless -u tests/minimal_init.lua -l tests/run.lua integration_spec
 ```
 
-The first run resolves the fixture with Gradle, which can download for minutes. The server keeps its cache in a temporary directory.
+The first run resolves the fixture with Gradle, which can download for minutes. The server keeps its cache in a temporary directory. CI's `integration` job builds the jar from the server's `main` and runs this spec on JDK 11.
