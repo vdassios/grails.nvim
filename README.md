@@ -133,7 +133,7 @@ Both are read each time the server starts. To change anything else, such as JVM 
 
 - [GSP grammar](docs/grammar.md): what it highlights and injects, building it without nvim-treesitter, known limits, the public code it was checked against
 - [Lua navigation server](docs/lua-server.md): what go to definition reaches, known limits
-- [Development](docs/development.md): grammar and plugin tests
+- [Development](docs/development.md): grammar and plugin tests, and the integration spec, which runs the plugin against a server jar when `GRAILS_LS_JAR` and `GRAILS_LS_FIXTURE` are set
 - [grails-language-server](https://github.com/vdassios/grails-language-server): features, editors, how it works
 
 ## License
