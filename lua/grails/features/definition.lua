@@ -74,9 +74,10 @@ local function asset(req, tag, value)
       names[#names + 1] = stem .. ext
     end
   end
+  local dirs = project.asset_dirs(req.root, req.path)
   for _, name in ipairs(names) do
     local found = {}
-    for _, dir in ipairs(project.asset_dirs(req.root, req.path)) do
+    for _, dir in ipairs(dirs) do
       local path = vim.fs.joinpath(dir, name)
       local stat = vim.uv.fs_stat(path)
       if stat and stat.type == 'file' then
