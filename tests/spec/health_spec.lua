@@ -67,8 +67,13 @@ local function health(settings)
   local saved = vim.g.grails_ls
   vim.g.grails_ls = settings
   local ok, err = pcall(vim.cmd.checkhealth, 'grails')
+  -- Neovim 0.13 runs the checks in an async task; every version sets the filetype once the report is written.
+  local done = ok and vim.wait(10000, function()
+    return vim.bo.filetype == 'checkhealth'
+  end)
   vim.g.grails_ls = saved
   assert(ok, err)
+  assert(done, ':checkhealth grails did not finish')
   local report = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), '\n')
   vim.cmd.bwipeout()
   return report
