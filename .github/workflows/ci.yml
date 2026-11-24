@@ -120,7 +120,7 @@ jobs:
           GRAILS_LS_JAR: ${{ github.workspace }}/grails-language-server/build/libs/grails-language-server-all.jar
           GRAILS_LS_FIXTURE: ${{ github.workspace }}/grails-language-server/fixtures/grails4
           JAVA_HOME: ${{ env.JAVA_HOME_11_X64 }}
-        # The grep fails the job if the spec ran no test.
+        # print() goes to stderr under --headless, hence 2>&1. The grep fails the job if the spec ran no test.
         run: |
-          nvim --headless -u tests/minimal_init.lua -l tests/run.lua integration_spec | tee "$RUNNER_TEMP/out"
+          nvim --headless -u tests/minimal_init.lua -l tests/run.lua integration_spec 2>&1 | tee "$RUNNER_TEMP/out"
           grep -q '^ok    integration_spec' "$RUNNER_TEMP/out"
